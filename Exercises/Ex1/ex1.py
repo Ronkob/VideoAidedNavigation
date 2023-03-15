@@ -1,8 +1,11 @@
 import cv2
 import matplotlib.pyplot as plt
+import random
 
 
 DATA_PATH = r'..\..\VAN_ex\dataset\sequences\05\\'
+PAIR = 1
+NUM_MATCHES = 20
 
 
 def read_images(idx):
@@ -12,7 +15,6 @@ def read_images(idx):
     :return: Two Images after cv.imread.
     """
     img_name = '{:06d}.png'.format(idx)
-    print(img_name)
     img1 = cv2.imread(DATA_PATH + 'image_0\\' + img_name, 0)
     img2 = cv2.imread(DATA_PATH + 'image_1\\' + img_name, 0)
     return img1, img2
@@ -23,9 +25,9 @@ def detect_and_extract(algorithm, img1, img2):
     Detect and extract key-points from the given stereo pairs, and calculate
      the feature-descriptors for each key-point in both key-points lists.
     :param algorithm:
-    :param img1:
-    :param img2:
-    :return:
+    :param img1: Image1 object.
+    :param img2: Image2 object.
+    :return: Key-points and descriptors of both images.
     """
     kp1, desc1 = algorithm.detectAndCompute(img1, mask=None)
     kp2, desc2 = algorithm.detectAndCompute(img2, mask=None)
@@ -57,7 +59,7 @@ def print_descriptors(desc1, desc2):
     :param desc2: First descriptor of Image2.
     """
     print("Image 1 first feature's descriptor:\n", desc1)
-    print("Image 2 first feature's descriptor:\n", desc2)
+    print("\nImage 2 first feature's descriptor:\n", desc2)
 
 
 def match(desc1, desc2):
@@ -67,22 +69,22 @@ def match(desc1, desc2):
     :param desc2: List of descriptors from Image2.
     :return: List of matches found.
     """
-    brute_force = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    brute_force = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
     matches = brute_force.match(desc1, desc2)
     return matches
 
 
 def present_matches(img1, kp1, img2, kp2, matches):
     """
-    Present 20 random matches as lines connecting the key-point pixel location
-     on the images pair.
+    Present num random matches as lines connecting the key-point pixel
+     location on the images pair.
     :param img1: Image1 to present matches on.
     :param kp1: Key-points detected on img1.
     :param img2: Image2 to present matches on.
     :param kp2: Key-points detected on img2.
     :param matches: Matches found between the given images.
     """
-    output_image = cv2.drawMatches(img1, kp1, img2, kp2, matches, None, flags=2)
+    output_image = cv2.drawMatches(img1, kp1, img2, kp2, matches, None, flags=2, matchColor=(0, 255, 0))
     plt.imshow(output_image)
     plt.show()
 
@@ -90,27 +92,28 @@ def present_matches(img1, kp1, img2, kp2, matches):
 def significance_test():
     """
     Use significance test to reject matches
-• generate an output with 20 of the resulting matches (as in sections 1.3).
-• What ratio value did you use?
-• How many matches were discarded?
-• Present a correct match (as a dot on each image) that failed the significance test. (If you
-cannot find such match, strengthen the significance test (how?) until you find one.)
+    • generate an output with 20 of the resulting matches (as in sections 1.3).
+    • What ratio value did you use?
+    • How many matches were discarded?
+    • Present a correct match (as a dot on each image) that failed the significance test. (If you
+    cannot find such match, strengthen the significance test (how?) until you find one.)
     :return:
     """
     pass
 
 
 def main():
-    img1, img2 = read_images(1)
+    img1, img2 = read_images(PAIR)
     algorithm = cv2.KAZE_create()
 
     img1_kp, img1_desc, img2_kp, img2_desc = \
         detect_and_extract(algorithm, img1, img2)
-    present_kp_locations(img1_kp, img1_desc, img2_kp, img2_desc)
-    print_descriptors(img1_desc, img2_desc)
+    # present_kp_locations(img1, img1_kp, img2, img2_kp)
+    # print_descriptors(img1_desc, img2_desc)
 
     matches = match(img1_desc, img2_desc)
-    present_matches(img1_kp, img1_desc, img2_kp, img2_desc, matches)
+    selected_matches = random.choices(matches, k=NUM_MATCHES)
+    present_matches(img1, img1_kp, img2, img2_kp, selected_matches)
 
 
 if __name__ == '__main__':
