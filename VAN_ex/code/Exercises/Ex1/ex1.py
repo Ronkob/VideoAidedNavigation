@@ -122,7 +122,6 @@ def significance_test(matches, ratio):
     • How many matches were discarded?
     • Present a correct match (as a dot on each image) that failed the significance test. (If you
     cannot find such match, strengthen the significance test (how?) until you find one.)
-    :return:
     """
     accepted_matches, rejected_matches = [], []
     for m, n in matches:
@@ -135,6 +134,9 @@ def significance_test(matches, ratio):
 
 def present_failed_sig_test(left_image, left_image_kp, right_image, right_image_kp,
                             rejected_matches, window_text):
+    """
+    present the best match that was rejected
+    """
     best_match = sorted(rejected_matches, key=lambda x: x[0].distance / x[1].distance)[0][0]
     left_kp = [left_image_kp[best_match.queryIdx]]
     right_kp = [right_image_kp[best_match.trainIdx]]
@@ -147,22 +149,26 @@ def present_failed_sig_test(left_image, left_image_kp, right_image, right_image_
 
 
 def ex1_run(algorithm, left_image, right_image):
+    # sec 1.1
     left_image_kp, left_image_desc, right_image_kp, right_image_desc = \
         detect_and_extract(algorithm, left_image, right_image)
     present_kp_locations(left_image, left_image_kp, right_image, right_image_kp)
+
+    # sec 1.2
     print_descriptors(left_image_desc, right_image_desc)
 
+    # sec 1.3
     matches = match(left_image_desc, right_image_desc)
     sampled_matches = random.choices(matches, k=NUM_MATCHES)
     present_matches(left_image, left_image_kp, right_image, right_image_kp, sampled_matches,
                     window_text=f"1.3 - random {NUM_MATCHES} matches")
 
+    # sec 1.4
     accepted_matches, rejected_matches = significance_test(matches, RATIO)
     sampled_matches = random.choices(accepted_matches, k=NUM_MATCHES)
     present_matches(left_image, left_image_kp, right_image, right_image_kp, sampled_matches,
                     window_text=f"1.4.1 - random {NUM_MATCHES} accepted matches")
     print(f"for a ratio of {RATIO} used, we got {len(rejected_matches)}/{len(matches)} rejected matches")
-
     present_failed_sig_test(left_image, left_image_kp,
                             right_image, right_image_kp, rejected_matches,
                             window_text=f'1.4.2 - a correct match that didn\'t pass the significance test')
