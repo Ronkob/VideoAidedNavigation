@@ -6,7 +6,7 @@ import VAN_ex.code.Ex1.ex1 as ex1_utils
 
 DATA_PATH = os.path.join('..', '..', 'dataset', 'sequences', '05')
 FIRST_PAIR_IDX = 1
-N_FEATURES = 600
+N_FEATURES = 500
 BINS = 50
 DIFF = 1
 
@@ -50,45 +50,42 @@ def use_rs_pattern(left_image, right_image, matches, left_image_kp, right_image_
      in orange and rejected matches (outliers) in cyan.
     """
     left_inliers, left_outliers = list(), list()
-    right_inliers, right_outiers = list(), list()
+    right_inliers, right_outliers = list(), list()
 
     for match in matches:
         img1_idx, img2_idx = match[0].queryIdx, match[0].trainIdx
         x1, y1 = left_image_kp[img1_idx].pt
         x2, y2 = right_image_kp[img2_idx].pt
-        if abs(y2-y1) > DIFF:
+        if abs(y2 - y1) > DIFF:
             left_outliers.append(left_image_kp[img1_idx].pt)
-            right_outiers.append(right_image_kp[img2_idx].pt)
+            right_outliers.append(right_image_kp[img2_idx].pt)
         else:
             left_inliers.append(left_image_kp[img1_idx].pt)
             right_inliers.append(right_image_kp[img2_idx].pt)
     print("Number of matches that were discarded is {}".format(len(left_outliers)))
 
-    # Present all matches on both images
-    plt.imshow(left_image, cmap='gray')
-    plt.title('Left Image')
-    plt.scatter([i[0] for i in left_inliers], [i[1] for i in left_inliers], s=1,
-                color='orange')
-    plt.scatter([i[0] for i in left_outliers], [i[1] for i in left_outliers], s=1,
-                color='cyan')
-    plt.show()
-
-    plt.imshow(right_image, cmap='gray')
-    plt.title("Right Image")
-    plt.scatter([i[0] for i in right_inliers], [i[1] for i in right_inliers],
-                s=1, color='orange')
-    plt.scatter([i[0] for i in right_outiers], [i[1] for i in right_outiers],
-                s=1, color='cyan')
-    plt.show()
+    present_matches(left_image, left_inliers, left_outliers, "Left Image")
+    present_matches(right_image, right_inliers, right_outliers, "Right Image")
 
     return np.array(left_inliers), np.array(right_inliers)
+
+
+def present_matches(image, inliers, outliers, text):
+    # Present all matches on both images
+    plt.imshow(image, cmap='gray')
+    plt.title(text)
+    plt.scatter([i[0] for i in inliers], [i[1] for i in inliers], s=1,
+                color='orange')
+    # plt.scatter([i[0] for i in outliers], [i[1] for i in outliers], s=1,
+    #             color='cyan')
+    plt.show()
 
 
 def read_cameras():
     """
     Read the relative camera matrices of the stereo cameras from ‘calib.txt’.
     """
-    with open(DATA_PATH+'\calib.txt') as f:
+    with open(DATA_PATH + '\calib.txt') as f:
         l1 = f.readline().split()[1:]  # skip first token
         l2 = f.readline().split()[1:]  # skip first token
     l1 = [float(i) for i in l1]
@@ -134,18 +131,57 @@ def display_and_compare(p3d, cv_p3d):
     - Compare the results: print the median distance between the corresponding
       3d points.
     """
-    # Display
+    # Main figure
+    rows, cols = 1, 2
+    elev, azim = 10, 10
 
-    # Compare
+    fig = plt.figure()
+    fig.suptitle(f"Our vs. Open-CV triangulation\n"
+                 f"Median distance between corresponding points = "
+                 f"{np.median(np.linalg.norm(p3d - cv_p3d, axis=1))}\n")
 
-    pass
+    # our triangulation
+    axes = fig.add_subplot(rows, cols, 1, projection='3d')
+    axes.set_title("Our Triangulation")
+    axes.scatter3D(0, 0, 0, c='red', s=60, marker='^')  # Camera
+    axes.scatter3D(p3d[:, 0], p3d[:, 1], p3d[:, 2])
+
+    axes.set_xlabel('X')
+    axes.set_ylabel('Y')
+    axes.set_zlabel('Z')
+    axes.set_xlim3d(-20, 10)
+    axes.set_ylim3d(10, -20)
+    axes.set_zlim3d(600, 0)
+    axes.view_init(elev=elev, azim=azim, vertical_axis='y')
+
+    # cv triangulation
+    axes = fig.add_subplot(rows, cols, 2, projection='3d')
+    axes.set_title("CV Triangulation")
+    axes.scatter(cv_p3d[:, 0], cv_p3d[:, 1], cv_p3d[:, 2])
+    axes.scatter3D(0, 0, 0, c='red', s=60, marker='^')  # Camera
+
+    axes.set_xlabel('X')
+    axes.set_ylabel('Y')
+    axes.set_zlabel('Z')
+    axes.set_xlim3d(-20, 10)
+    axes.set_ylim3d(10, -20)
+    axes.set_zlim3d(600, 0)
+    axes.view_init(elev=elev, azim=azim, vertical_axis='y')
+
+    plt.show()
 
 
-def run_few_images():
+def run_few_images(num_images):
     """
     Run this process (matching and triangulation) over a few pairs of images.
     """
-    pass
+    for idx in np.arange(FIRST_PAIR_IDX + 1, FIRST_PAIR_IDX + num_images * 20, 20):
+        left_image, right_image = ex1_utils.read_images(idx)
+        algorithm = cv2.SIFT_create(nfeatures=N_FEATURES)
+        left_image_kp, left_image_desc, right_image_kp, right_image_desc = \
+            ex1_utils.detect_and_extract(algorithm, left_image, right_image)
+        matches = ex1_utils.match(left_image_desc, right_image_desc)
+        run_ex2(left_image, right_image, left_image_kp, right_image_kp, matches)
 
 
 def run_ex2(left_image, right_image, left_image_kp, right_image_kp, matches):
@@ -158,23 +194,22 @@ def run_ex2(left_image, right_image, left_image_kp, right_image_kp, matches):
 
     # Section 2.3
     k, m1, m2 = read_cameras()
-    p3d = triangulate_points(k@m1, k@m2, left_inliers, right_inliers)
+    p3d = triangulate_points(k @ m1, k @ m2, left_inliers, right_inliers)
     cv_p4d = cv2.triangulatePoints(
-        k@m1, k@m2, left_inliers.T, right_inliers.T).T
+        k @ m1, k @ m2, left_inliers.T, right_inliers.T).T
     cv_p3d = np.squeeze(cv2.convertPointsFromHomogeneous(cv_p4d))
     display_and_compare(p3d, cv_p3d)
 
-    # Section 2.4
-    run_few_images()
-
 
 def main():
-    left_image, right_image = ex1_utils.read_images(FIRST_PAIR_IDX)
-    algorithm = cv2.SIFT_create(nfeatures=N_FEATURES)
-    left_image_kp, left_image_desc, right_image_kp, right_image_desc =\
-        ex1_utils.detect_and_extract(algorithm, left_image, right_image)
-    matches = ex1_utils.match(left_image_desc, right_image_desc)
-    run_ex2(left_image, right_image, left_image_kp, right_image_kp, matches)
+    """
+    :return:
+    """
+    # single run on first image
+    run_few_images(1)
+
+    # consecutive run over a few images
+    run_few_images(5)
 
 
 if __name__ == '__main__':
