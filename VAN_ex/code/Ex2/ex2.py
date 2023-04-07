@@ -32,18 +32,19 @@ def create_dev_hist(matches, left_image_kp, right_image_kp):
     """
     deviations = calculate_deviations(matches, left_image_kp, right_image_kp)
 
-    plt.title('Deviations From Pattern')
+    plt.suptitle('Deviations From Pattern')
     plt.ylabel('Number of matches')
     plt.xlabel('Deviation from rectified stereo pattern')
     plt.hist(deviations, bins=BINS)
-    plt.show()
 
     deviated = sum(map(lambda x: x > 2, deviations))
-    print("Percentage of matches that deviate by more than 2 pixels is {}%".
-          format(deviated / len(matches) * 100))
+    plt.title("Percentage of matches that deviate by more than 2 pixels is %.2f" %
+                 (deviated / len(matches) * 100))
+    plt.savefig(f"results/dev_histogram.png")
+    plt.show()
 
 
-def use_rs_pattern(left_image, right_image, matches, left_image_kp, right_image_kp):
+def reject_matches_pattern(matches, left_image_kp, right_image_kp):
     """
     Use the rectified stereo pattern to reject matches. Present all the
      resulting matches as dots on the image pair. Accepted matches (inliers)
@@ -64,20 +65,30 @@ def use_rs_pattern(left_image, right_image, matches, left_image_kp, right_image_
             right_inliers.append(right_image_kp[img2_idx].pt)
     print("Number of matches that were discarded is {}".format(len(left_outliers)))
 
-    present_matches(left_image, left_inliers, left_outliers, "Left Image")
-    present_matches(right_image, right_inliers, right_outliers, "Right Image")
-
-    return np.array(left_inliers), np.array(right_inliers)
+    return np.array(left_inliers), np.array(left_outliers), np.array(right_inliers), np.array(right_outliers)
 
 
-def present_matches(image, inliers, outliers, text):
+def present_matches(left_image, left_inliers, left_outliers, right_image, right_inliers, right_outliers, idx):
     # Present all matches on both images
-    plt.imshow(image, cmap='gray')
-    plt.title(text)
-    plt.scatter([i[0] for i in inliers], [i[1] for i in inliers], s=1,
+    fig = plt.figure()
+    fig.suptitle(f"Pair #{idx} matches")
+    rows, cols = 2, 1
+    axes = fig.add_subplot(rows, cols, 1)
+    axes.imshow(left_image, cmap='gray')
+    axes.set_title("Left Image")
+    axes.scatter([i[0] for i in left_inliers], [i[1] for i in left_inliers], s=1,
                 color='orange')
-    # plt.scatter([i[0] for i in outliers], [i[1] for i in outliers], s=1,
-    #             color='cyan')
+    axes.scatter([i[0] for i in left_outliers], [i[1] for i in left_outliers], s=1,
+                color='cyan')
+    axes = fig.add_subplot(rows, cols, 2)
+    axes.imshow(right_image, cmap='gray')
+    axes.set_title("Right Image")
+    axes.scatter([i[0] for i in right_inliers], [i[1] for i in right_inliers], s=1,
+                 color='orange')
+    axes.scatter([i[0] for i in right_outliers], [i[1] for i in right_outliers], s=1,
+                 color='cyan')
+
+    fig.savefig(f"results/matches_{idx}.png")
     plt.show()
 
 
@@ -124,7 +135,7 @@ def triangulate_points(left_mat, right_mat, left_points, right_points):
     return np.array(p3d_lst)
 
 
-def display_and_compare(p3d, cv_p3d):
+def display_and_compare(p3d, cv_p3d, idx):
     """
     - Present a 3D plot of the calculated 3D points of our triangulation.
     - Display the point cloud obtained from opencv and
@@ -133,7 +144,7 @@ def display_and_compare(p3d, cv_p3d):
     """
     # Main figure
     rows, cols = 1, 2
-    elev, azim = 10, 10
+    elev, azim = 30, 10
 
     fig = plt.figure()
     fig.suptitle(f"Our vs. Open-CV triangulation\n"
@@ -149,9 +160,11 @@ def display_and_compare(p3d, cv_p3d):
     axes.set_xlabel('X')
     axes.set_ylabel('Y')
     axes.set_zlabel('Z')
-    axes.set_xlim3d(-20, 10)
-    axes.set_ylim3d(10, -20)
-    axes.set_zlim3d(600, 0)
+    axes.set_xlim3d(-20, 20)
+    axes.set_ylim3d(-20, 20)
+    axes.set_zlim3d(-10, 300)
+    axes.invert_yaxis()
+    axes.invert_zaxis()
     axes.view_init(elev=elev, azim=azim, vertical_axis='y')
 
     # cv triangulation
@@ -163,53 +176,66 @@ def display_and_compare(p3d, cv_p3d):
     axes.set_xlabel('X')
     axes.set_ylabel('Y')
     axes.set_zlabel('Z')
-    axes.set_xlim3d(-20, 10)
-    axes.set_ylim3d(10, -20)
-    axes.set_zlim3d(600, 0)
+    axes.set_xlim3d(-20, 20)
+    axes.set_ylim3d(-20, 20)
+    axes.set_zlim3d(-10, 300)
+    axes.invert_yaxis()
+    axes.invert_zaxis()
     axes.view_init(elev=elev, azim=azim, vertical_axis='y')
 
+    fig.savefig(f'Results/ImCompForIdx{idx}.png')
     plt.show()
 
 
-def run_few_images(num_images):
+def run_few_images(num_images, SEQ_FACTOR=10):
     """
     Run this process (matching and triangulation) over a few pairs of images.
     """
-    for idx in np.arange(FIRST_PAIR_IDX + 1, FIRST_PAIR_IDX + num_images * 20, 20):
-        left_image, right_image = ex1_utils.read_images(idx)
-        algorithm = cv2.SIFT_create(nfeatures=N_FEATURES)
-        left_image_kp, left_image_desc, right_image_kp, right_image_desc = \
-            ex1_utils.detect_and_extract(algorithm, left_image, right_image)
-        matches = ex1_utils.match(left_image_desc, right_image_desc)
-        run_ex2(left_image, right_image, left_image_kp, right_image_kp, matches)
-
-
-def run_ex2(left_image, right_image, left_image_kp, right_image_kp, matches):
     # Section 2.1
-    create_dev_hist(matches, left_image_kp, right_image_kp)
-
-    # Section 2.2
-    left_inliers, right_inliers = \
-        use_rs_pattern(left_image, right_image, matches, left_image_kp, right_image_kp)
-
-    # Section 2.3
     k, m1, m2 = read_cameras()
-    p3d = triangulate_points(k @ m1, k @ m2, left_inliers, right_inliers)
-    cv_p4d = cv2.triangulatePoints(
-        k @ m1, k @ m2, left_inliers.T, right_inliers.T).T
-    cv_p3d = np.squeeze(cv2.convertPointsFromHomogeneous(cv_p4d))
-    display_and_compare(p3d, cv_p3d)
+
+    # Section 2.4
+    for idx in np.arange(FIRST_PAIR_IDX, (SEQ_FACTOR * num_images) + FIRST_PAIR_IDX, SEQ_FACTOR):
+        matches, left_image_kp, right_image_kp, left_image, right_image = get_matches(idx)
+        # Section 2.2
+        left_inliers, left_outliers, right_inliers, right_outliers = \
+            reject_matches_pattern(matches, left_image_kp, right_image_kp)
+        present_matches(left_image, left_inliers, left_outliers, right_image, right_inliers,
+                        right_outliers, idx)
+
+        # Section 2.3
+        p3d = triangulate_points(k @ m1, k @ m2, left_inliers, right_inliers)
+        cv_p4d = cv2.triangulatePoints(
+            k @ m1, k @ m2, left_inliers.T, right_inliers.T).T
+        cv_p3d = np.squeeze(cv2.convertPointsFromHomogeneous(cv_p4d))
+        display_and_compare(p3d, cv_p3d, idx)
+
+        if idx == FIRST_PAIR_IDX:
+            create_dev_hist(matches, left_image_kp, right_image_kp)
+
+
+def get_matches(idx):
+    left_image, right_image = ex1_utils.read_images(idx)
+    algorithm = cv2.SIFT_create(nfeatures=N_FEATURES)
+    left_image_kp, left_image_desc, right_image_kp, right_image_desc = \
+        ex1_utils.detect_and_extract(algorithm, left_image, right_image)
+    return ex1_utils.match(left_image_desc,
+                           right_image_desc), left_image_kp, right_image_kp, left_image, right_image
+
+
+def run_ex2():
+    # single run on first image
+    # run_few_images(1)
+
+    # consecutive run over a few images
+    run_few_images(3)
 
 
 def main():
     """
     :return:
     """
-    # single run on first image
-    run_few_images(1)
-
-    # consecutive run over a few images
-    run_few_images(5)
+    run_ex2()
 
 
 if __name__ == '__main__':
