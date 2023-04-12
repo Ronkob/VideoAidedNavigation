@@ -39,7 +39,7 @@ def create_dev_hist(matches, left_image_kp, right_image_kp):
 
     deviated = sum(map(lambda x: x > 2, deviations))
     plt.title("Percentage of matches that deviate by more than 2 pixels is %.2f" %
-                 (deviated / len(matches) * 100))
+              (deviated / len(matches) * 100))
     plt.savefig(f"results/dev_histogram.png")
     plt.show()
 
@@ -52,20 +52,21 @@ def reject_matches_pattern(matches, left_image_kp, right_image_kp):
     """
     left_inliers, left_outliers = list(), list()
     right_inliers, right_outliers = list(), list()
-
     for match in matches:
         img1_idx, img2_idx = match[0].queryIdx, match[0].trainIdx
         x1, y1 = left_image_kp[img1_idx].pt
         x2, y2 = right_image_kp[img2_idx].pt
-        if abs(y2 - y1) > DIFF:
+        if np.abs(y2 - y1) > DIFF:
             left_outliers.append(left_image_kp[img1_idx].pt)
             right_outliers.append(right_image_kp[img2_idx].pt)
         else:
             left_inliers.append(left_image_kp[img1_idx].pt)
             right_inliers.append(right_image_kp[img2_idx].pt)
+
     print("Number of matches that were discarded is {}".format(len(left_outliers)))
 
-    return np.array(left_inliers), np.array(left_outliers), np.array(right_inliers), np.array(right_outliers)
+    return np.array(left_inliers), np.array(left_outliers), np.array(right_inliers), np.array(
+        right_outliers)
 
 
 def present_matches(left_image, left_inliers, left_outliers, right_image, right_inliers, right_outliers, idx):
@@ -76,17 +77,17 @@ def present_matches(left_image, left_inliers, left_outliers, right_image, right_
     axes = fig.add_subplot(rows, cols, 1)
     axes.imshow(left_image, cmap='gray')
     axes.set_title("Left Image")
-    axes.scatter([i[0] for i in left_inliers], [i[1] for i in left_inliers], s=1,
-                color='orange')
     axes.scatter([i[0] for i in left_outliers], [i[1] for i in left_outliers], s=1,
-                color='cyan')
+                 color='cyan')
+    axes.scatter([i[0] for i in left_inliers], [i[1] for i in left_inliers], s=1,
+                 color='orange')
     axes = fig.add_subplot(rows, cols, 2)
     axes.imshow(right_image, cmap='gray')
     axes.set_title("Right Image")
-    axes.scatter([i[0] for i in right_inliers], [i[1] for i in right_inliers], s=1,
-                 color='orange')
     axes.scatter([i[0] for i in right_outliers], [i[1] for i in right_outliers], s=1,
                  color='cyan')
+    axes.scatter([i[0] for i in right_inliers], [i[1] for i in right_inliers], s=1,
+                 color='orange')
 
     fig.savefig(f"results/matches_{idx}.png")
     plt.show()
@@ -198,7 +199,7 @@ def run_few_images(num_images, SEQ_FACTOR=10):
     for idx in np.arange(FIRST_PAIR_IDX, (SEQ_FACTOR * num_images) + FIRST_PAIR_IDX, SEQ_FACTOR):
         matches, left_image_kp, right_image_kp, left_image, right_image = get_matches(idx)
         # Section 2.2
-        left_inliers, left_outliers, right_inliers, right_outliers = \
+        left_inliers, left_outliers, right_inliers, right_outliers= \
             reject_matches_pattern(matches, left_image_kp, right_image_kp)
         present_matches(left_image, left_inliers, left_outliers, right_image, right_inliers,
                         right_outliers, idx)

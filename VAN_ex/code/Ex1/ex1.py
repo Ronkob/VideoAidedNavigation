@@ -38,7 +38,7 @@ def detect_and_extract(algorithm, left_image, right_image):
     :return: Key-points and descriptors of both images.
     """
     kp1, desc1 = algorithm.detectAndCompute(left_image, mask=None)
-    kp2, desc2 = algorithm.detectAndCompute(right_image, mask=None)
+    kp2, desc2 = algorithm.detectAndCompute(right_image, mask=None) 
     print(f"Detected {len(kp1)} keypoints in left image, and {len(kp2)} "
           f"keypoints in right image")
     return kp1, desc1, kp2, desc2
