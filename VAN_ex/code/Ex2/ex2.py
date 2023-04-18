@@ -233,9 +233,6 @@ def run_ex2():
 
 
 def main():
-    """
-    :return:
-    """
     run_ex2()
 
 
