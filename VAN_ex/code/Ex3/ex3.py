@@ -1,8 +1,7 @@
 import os
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-import VAN_ex.utils as utils
+import VAN_ex.code.utils as utils
 
 DATA_PATH = os.path.join('..', '..', 'dataset', 'sequences', '05')
 N_FEATURES = 500

@@ -2,7 +2,7 @@ import os.path
 import cv2
 import numpy as np
 
-DATA_PATH = os.path.join('..', '..', 'dataset', 'sequences', '05')
+DATA_PATH = os.path.join('../..', '..', 'dataset', 'sequences', '05')
 N_FEATURES = 500
 RATIO = 0.6
 DIFF = 2
