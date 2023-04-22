@@ -2,7 +2,7 @@ import os.path
 import cv2
 import numpy as np
 
-DATA_PATH = os.path.join('../..', '..', 'dataset', 'sequences', '05')
+DATA_PATH = os.path.join('..', 'dataset', 'sequences', '05')
 N_FEATURES = 500
 RATIO = 0.6
 DIFF = 2
@@ -38,8 +38,8 @@ def detect_and_extract(algorithm, left_image, right_image):
     """
     kp1, desc1 = algorithm.detectAndCompute(left_image, mask=None)
     kp2, desc2 = algorithm.detectAndCompute(right_image, mask=None)
-    print(f"Detected {len(kp1)} keypoints in left image, and {len(kp2)} "
-          f"keypoints in right image")
+    # print(f"Detected {len(kp1)} keypoints in left image, and {len(kp2)} "
+    #       f"keypoints in right image")
     return kp1, desc1, kp2, desc2
 
 
@@ -68,7 +68,7 @@ def match(desc1, desc2):
     brute_force = cv2.BFMatcher()
     matches = brute_force.knnMatch(desc1, desc2, k=2)
     matches, _ = significance_test(matches, RATIO)
-    return matches
+    return np.array(matches)
 
 
 def get_matches(img1, img2):
@@ -82,13 +82,11 @@ def get_matches(img1, img2):
 
 def reject_matches_pattern(matches, left_image_kp, right_image_kp):
     """
-    Use the rectified stereo pattern to reject matches. Present all the
-     resulting matches as dots on the image pair. Accepted matches (inliers)
-     in orange and rejected matches (outliers) in cyan.
+    Use the rectified stereo pattern to reject matches, return all inliers points.
     """
     left_inliers, left_outliers = list(), list()
     right_inliers, right_outliers = list(), list()
-    for match in matches:
+    for i, match in enumerate(matches):
         img1_idx, img2_idx = match[0].queryIdx, match[0].trainIdx
         x1, y1 = left_image_kp[img1_idx].pt
         x2, y2 = right_image_kp[img2_idx].pt
@@ -100,6 +98,20 @@ def reject_matches_pattern(matches, left_image_kp, right_image_kp):
             right_inliers.append(right_image_kp[img2_idx].pt)
 
     return np.array(left_inliers), np.array(right_inliers)
+
+
+def stereo_reject(matches, left_image_kp, right_image_kp):
+    """
+    Use the rectified stereo pattern to reject matches, return the indexes.
+    """
+    inliers_idx = list()
+    for i, match in enumerate(matches):
+        img1_idx, img2_idx = match[0].queryIdx, match[0].trainIdx
+        x1, y1 = left_image_kp[img1_idx].pt
+        x2, y2 = right_image_kp[img2_idx].pt
+        if np.abs(y2 - y1) < DIFF:
+            inliers_idx.append(i)
+    return inliers_idx
 
 
 def read_cameras():
@@ -120,6 +132,10 @@ def read_cameras():
 
 
 def least_squares_algorithm(P, Q, left_point, right_point):
+    """
+    Calculates the least square algorithm solution for P and Q matrices over
+    two points.
+    """
     p_x, p_y = left_point
     q_x, q_y = right_point
     A = np.array([P[2] * p_x - P[0],
@@ -143,3 +159,14 @@ def triangulate_points(left_mat, right_mat, left_points, right_points):
         p3d = p4d[:3] / p4d[3]
         p3d_lst.append(p3d)
     return np.array(p3d_lst)
+
+
+def matches_to_pts(matches, left_kps, right_kps):
+    """
+    Takes matches OpenCV objects and returns their pixels in the images.
+    """
+    left_inliers, right_inliers = list(), list()
+    for match in matches:
+        left_inliers.append(left_kps[match[0].queryIdx].pt)
+        right_inliers.append(right_kps[match[0].trainIdx].pt)
+    return np.array(left_inliers), np.array(right_inliers)
