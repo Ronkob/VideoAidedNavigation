@@ -47,17 +47,22 @@ def create_point_cloud(idx):
     return p3d
 
 
-def calculate_pnp(point_cloud, left1_matching_loc, k):
+def calculate_pnp(point_cloud, left1_matching_loc, calib_mat):
     """
     Calculate the PnP algorithm.
     """
-    _, rotation_vector, translation_vector = cv2.solvePnP(point_cloud, left1_matching_loc, k, None,
-                                                          flags=cv2.SOLVEPNP_AP3P)
+    point_cloud, left1_matching_loc = np.unique(point_cloud, axis=0), np.unique(left1_matching_loc, axis=0)
 
-    if rotation_vector is None:
-        print("aha! spotted a hidden outlier")
+    if len(point_cloud) != PNP_POINTS or len(left1_matching_loc) != PNP_POINTS:
         return None
-    ex_cam_mat = rodriguez_to_mat(rotation_vector, translation_vector)
+
+    success, rotation_vector, translation_vector = cv2.solvePnP(point_cloud, left1_matching_loc, calib_mat, None,
+                                                                flags=cv2.SOLVEPNP_AP3P)
+    ex_cam_mat = None
+
+    if success:
+        ex_cam_mat = rodriguez_to_mat(rotation_vector, translation_vector)
+
     return ex_cam_mat
 
 
@@ -113,6 +118,22 @@ def plot_relative_pos(left0_camera, right0_camera, left1_camera, right1_camera):
     plt.show()
 
 
+def plot_camera_trajectory(camera_pos):
+    fig, ax = plt.subplots()
+    ax.set_title('Trajectory of the left camera')
+    prev_pos = None
+    for pos in camera_pos:
+        ax.scatter(pos[0], pos[2], color='red')
+        if prev_pos is not None:
+            ax.plot([prev_pos[0], pos[0]], [prev_pos[2], pos[2]], color='blue')
+        prev_pos = pos
+
+    plt.xlabel("x")
+    plt.ylabel("z")
+    plt.savefig("trajectory.png")
+    plt.show()
+
+
 def plot_matches_and_supporters(left0, left1, left0_inliers, left1_inliers, supporters_idx):
     """
     Plot on images left0 and left1 the matches, with supporters in
@@ -155,6 +176,7 @@ def plot_relative_camera_positions(left1_ext_mat, m1, m2):
     right1_ext_mat = m2 @ np.vstack((left1_ext_mat, [np.array([0, 0, 0, 1])]))
     right1_cam = calc_relative_camera_pos(right1_ext_mat)  # left0 -> right0 -> right1
     plot_relative_pos(left0_cam, right0_cam, left1_cam, right1_cam)
+    return left1_cam
 
 
 def find_matching_features_successive(left0_image, right0_image, left1_image, right1_image):
@@ -220,7 +242,7 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2):
 
 def track_movement_successive(idxs):
     """sections 3.2 - 3.5"""
-
+    print(idxs)
     # section 3.2 - match features between two left images
     left0_image, right0_image = ex1_utils.read_images(idxs[0])
     left1_image, right1_image = ex1_utils.read_images(idxs[1])
@@ -232,11 +254,11 @@ def track_movement_successive(idxs):
     pair0_p3d = utils.triangulate_points(k @ m1, k @ m2, left0_inliers, right0_inliers)
     pair1_p3d = utils.triangulate_points(k @ m1, k @ m2, left1_inliers, right1_inliers)
 
-    left1_ext_mat = calc_ext_mat_from_sample_idxs(np.arange(PNP_POINTS), left1_inliers, pair0_p3d, k)
-
-    # section 3.3.2 - plot the relative position of the four cameras
-    plot_relative_camera_positions(left1_ext_mat, m1, m2)
-
+    left1_ext_mat = calc_ext_mat_from_sample_idxs(np.arange(PNP_POINTS),
+                                                  left1_inliers, pair0_p3d, k)
+    if left1_ext_mat is None:
+        left1_ext_mat, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2)
+        plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx)
     # Section 3.4 - Recognize supporters for the ext_mat
     T, right_T = calculate_T_and_right_T(left1_ext_mat, k, m2)
     supporters_idx = recognize_supporters(pair0_p3d, T, left1_inliers, right_T, right1_inliers)
@@ -247,17 +269,27 @@ def track_movement_successive(idxs):
     best_ext_mat, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2)
     plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx)
 
+    # section 3.3.2 - plot the relative position of the four cameras
+    left1_cam_pos = plot_relative_camera_positions(best_ext_mat, m1, m2)
+
     utils.display_2_point_clouds(pair0_p3d, pair1_p3d, "second clouds")
     proj_no_ransac = pair0_p3d @ left1_ext_mat
     proj_ransac = pair0_p3d @ best_ext_mat
-    utils.display_point_cloud(proj_no_ransac, pair1_p3d,
-                              ["third cloud", "transformed pair 0 points, no ransac", "pair 1 points"])
-    utils.display_point_cloud(proj_ransac, pair1_p3d,
-                              ["forth cloud", "transformed pair 0 points, ransac", "pair 1 points"])
+    utils.display_point_cloud(pair1_p3d, proj_no_ransac,
+                              ["third cloud", "pair 1 points", "transformed pair 0 points, no ransac"])
+    utils.display_point_cloud(pair1_p3d, proj_ransac,
+                              ["forth cloud", "pair 1 points", "transformed pair 0 points, ransac"])
+
+    return left1_cam_pos, best_ext_mat
 
 
 def track_movement_all_movie():
-    pass
+    camera_pos = [np.array([0, 0, 0])]
+    for idx in range(40):
+        left_camera_pos, left_ext_mat = track_movement_successive([idx, idx + 1])
+        camera_pos.append(camera_pos[-1] + left_camera_pos)
+    print(camera_pos)
+    plot_camera_trajectory(camera_pos)
 
 
 def run_ex3():
@@ -266,14 +298,14 @@ def run_ex3():
     Runs all exercise 3 sections.
     """
 
-    idxs = [0, 10]
+    idxs = [0, 1]
     # Section 3.1 - Create two point clouds - for pair0 and pair1
     cloud0 = create_point_cloud(idxs[0])
     cloud1 = create_point_cloud(idxs[1])
     utils.display_2_point_clouds(cloud0, cloud1, "first clouds")
 
     # sections 3.2 - 3.5
-    track_movement_successive(idxs)
+    # track_movement_successive(idxs)
 
     # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.
     track_movement_all_movie()

@@ -139,10 +139,7 @@ def least_squares_algorithm(P, Q, left_point, right_point):
     """
     p_x, p_y = left_point
     q_x, q_y = right_point
-    A = np.array([P[2] * p_x - P[0],
-                  P[2] * p_y - P[1],
-                  Q[2] * q_x - Q[0],
-                  Q[2] * q_y - Q[1]])
+    A = np.array([P[2] * p_x - P[0], P[2] * p_y - P[1], Q[2] * q_x - Q[0], Q[2] * q_y - Q[1]])
     u, s, vt = np.linalg.svd(A)
     return vt[-1]
 
@@ -155,8 +152,7 @@ def triangulate_points(left_mat, right_mat, left_points, right_points):
     """
     p3d_lst = []
     for i in range(len(right_points)):
-        p4d = least_squares_algorithm(left_mat, right_mat,
-                                      left_points[i], right_points[i])
+        p4d = least_squares_algorithm(left_mat, right_mat, left_points[i], right_points[i])
         p3d = p4d[:3] / p4d[3]
         p3d_lst.append(p3d)
     return np.array(p3d_lst)
@@ -174,6 +170,38 @@ def matches_to_pts(matches, left_kps, right_kps):
 
 
 def display_point_cloud(first_cloud, second_claud, txt, elev=60, azim=10):
+    """
+    - Present a 3D plot of the calculated 3D points of our triangulation.
+    - Display the point cloud obtained from opencv and
+    - Compare the results: print the median distance between the corresponding
+      3d points.
+    """
+    # Main figure
+    rows, cols = 1, 1
+    fig = plt.figure()
+    fig.suptitle(txt[0])
+
+    # first point cloud
+    axes = fig.add_subplot(rows, cols, 1, projection='3d')
+    axes.scatter3D(0, 0, 0, c='red', s=60, marker='^')  # Camera
+    axes.scatter3D(first_cloud[:, 0], first_cloud[:, 1], first_cloud[:, 2], marker='^', alpha=0.5, color='orange', label=txt[1])
+
+    # second point cloud
+    axes.scatter(second_claud[:, 0], second_claud[:, 1], second_claud[:, 2], marker='o', alpha=0.5, color='cyan', label=txt[2])
+    axes.set_xlabel('X')
+    axes.set_ylabel('Y')
+    axes.set_zlabel('Z')
+    axes.set_xlim3d(-20, 20)
+    axes.set_ylim3d(-20, 20)
+    axes.set_zlim3d(-10, 300)
+    axes.invert_yaxis()
+    axes.invert_zaxis()
+    axes.view_init(elev=elev, azim=azim, vertical_axis='y')
+    plt.legend()
+    plt.show()
+
+
+def display_2_point_clouds(first_cloud, second_claud, txt, elev=60, azim=10):
     """
     - Present a 3D plot of the calculated 3D points of our triangulation.
     - Display the point cloud obtained from opencv and
