@@ -197,7 +197,7 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2):
     """
     best_num_supporters = 0
     best_idx = np.zeros(PNP_POINTS)
-    best_T = None
+    best_ext_mat = None
     best_supporters = None
 
     for _ in range(300):
@@ -212,10 +212,10 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2):
         if len(supporters_idx) > best_num_supporters:
             best_idx = random_idx
             best_num_supporters = len(supporters_idx)
-            best_T = T
+            best_ext_mat = left1_ext_mat
             best_supporters = supporters_idx
 
-    return best_T, best_supporters
+    return best_ext_mat, best_supporters
 
 
 def track_movement_successive(idxs):
@@ -244,15 +244,16 @@ def track_movement_successive(idxs):
 
     # Section 3.5 - Use a RANSAC framework, with PNP as the inner model,
     # to find the 4 points that maximize the number of supporters.
-    T, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2)
+    best_ext_mat, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2)
     plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx)
 
-    utils.display_point_cloud(pair0_p3d, pair1_p3d, "second clouds")
-    R, t = T[:, :3], T[:, 3]
-    proj = pair0_p3d @ R.T + t
-    predecessor_cloud_to_successor = proj
-    print(proj.shape)
-    utils.display_point_cloud(predecessor_cloud_to_successor, pair1_p3d, "third clouds")
+    utils.display_2_point_clouds(pair0_p3d, pair1_p3d, "second clouds")
+    proj_no_ransac = pair0_p3d @ left1_ext_mat
+    proj_ransac = pair0_p3d @ best_ext_mat
+    utils.display_point_cloud(proj_no_ransac, pair1_p3d,
+                              ["third cloud", "transformed pair 0 points, no ransac", "pair 1 points"])
+    utils.display_point_cloud(proj_ransac, pair1_p3d,
+                              ["forth cloud", "transformed pair 0 points, ransac", "pair 1 points"])
 
 
 def track_movement_all_movie():
@@ -269,7 +270,7 @@ def run_ex3():
     # Section 3.1 - Create two point clouds - for pair0 and pair1
     cloud0 = create_point_cloud(idxs[0])
     cloud1 = create_point_cloud(idxs[1])
-    utils.display_point_cloud(cloud0, cloud1, "first clouds")
+    utils.display_2_point_clouds(cloud0, cloud1, "first clouds")
 
     # sections 3.2 - 3.5
     track_movement_successive(idxs)

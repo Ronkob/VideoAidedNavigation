@@ -145,7 +145,7 @@ def display_and_compare(p3d, cv_p3d, idx):
     """
     # Main figure
     rows, cols = 1, 2
-    elev, azim = 30, 10
+    elev, azim = 60, 20
 
     fig = plt.figure()
     fig.suptitle(f"Our vs. Open-CV triangulation\n"
@@ -161,9 +161,9 @@ def display_and_compare(p3d, cv_p3d, idx):
     axes.set_xlabel('X')
     axes.set_ylabel('Y')
     axes.set_zlabel('Z')
-    axes.set_xlim3d(-20, 20)
-    axes.set_ylim3d(-20, 20)
-    axes.set_zlim3d(-10, 300)
+    # axes.set_xlim3d(-20, 20)
+    # axes.set_ylim3d(-20, 20)
+    # axes.set_zlim3d(-10, 300)
     axes.invert_yaxis()
     axes.invert_zaxis()
     axes.view_init(elev=elev, azim=azim, vertical_axis='y')

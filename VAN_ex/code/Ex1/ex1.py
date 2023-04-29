@@ -16,8 +16,8 @@ def read_images(idx):
     :return: Two Grayscale Images after cv.imread.
     """
     img_name = '{:06d}.png'.format(idx)
-    print(os.path.join(os.path.dirname(__file__), DATA_PATH)+'\\image_1\\'+img_name)
-    print(os.path.exists(os.path.join(os.path.dirname(__file__), DATA_PATH)))
+    # print(os.path.join(os.path.dirname(__file__), DATA_PATH)+'\\image_1\\'+img_name)
+    # print(os.path.exists(os.path.join(os.path.dirname(__file__), DATA_PATH)))
 
     left_image = cv2.imread(DATA_PATH+'\\image_0\\'+img_name, cv2.IMREAD_GRAYSCALE)
     right_image = cv2.imread(DATA_PATH+'\\image_1\\'+img_name, cv2.IMREAD_GRAYSCALE)
