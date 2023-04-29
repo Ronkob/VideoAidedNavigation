@@ -1,6 +1,7 @@
 import os.path
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 DATA_PATH = os.path.join('..', 'dataset', 'sequences', '05')
 N_FEATURES = 500
@@ -15,11 +16,11 @@ def read_images(idx):
     :return: Two Grayscale Images after cv.imread.
     """
     img_name = '{:06d}.png'.format(idx)
-    print(os.path.join(os.path.dirname(__file__), DATA_PATH)+'\\image_1\\'+img_name)
-    print(os.path.exists(os.path.join(os.path.dirname(__file__), DATA_PATH)))
+    # print(os.path.join(os.path.dirname(__file__), DATA_PATH) + '\\image_1\\' + img_name)
+    # print(os.path.exists(os.path.join(os.path.dirname(__file__), DATA_PATH)))
 
-    left_image = cv2.imread(DATA_PATH+'\\image_0\\'+img_name, cv2.IMREAD_GRAYSCALE)
-    right_image = cv2.imread(DATA_PATH+'\\image_1\\'+img_name, cv2.IMREAD_GRAYSCALE)
+    left_image = cv2.imread(DATA_PATH + '\\image_0\\' + img_name, cv2.IMREAD_GRAYSCALE)
+    right_image = cv2.imread(DATA_PATH + '\\image_1\\' + img_name, cv2.IMREAD_GRAYSCALE)
 
     if left_image is None or right_image is None:
         raise RuntimeWarning("not a valid path, images are null")
@@ -170,3 +171,50 @@ def matches_to_pts(matches, left_kps, right_kps):
         left_inliers.append(left_kps[match[0].queryIdx].pt)
         right_inliers.append(right_kps[match[0].trainIdx].pt)
     return np.array(left_inliers), np.array(right_inliers)
+
+
+def display_point_cloud(first_cloud, second_claud, txt, elev=60, azim=10):
+    """
+    - Present a 3D plot of the calculated 3D points of our triangulation.
+    - Display the point cloud obtained from opencv and
+    - Compare the results: print the median distance between the corresponding
+      3d points.
+    """
+    # Main figure
+    rows, cols = 1, 2
+    fig = plt.figure()
+    fig.suptitle(txt)
+
+    # our triangulation
+    axes = fig.add_subplot(rows, cols, 1, projection='3d')
+    axes.set_title("first point cloud")
+    axes.scatter3D(0, 0, 0, c='red', s=60, marker='^')  # Camera
+    axes.scatter3D(first_cloud[:, 0], first_cloud[:, 1], first_cloud[:, 2])
+
+    axes.set_xlabel('X')
+    axes.set_ylabel('Y')
+    axes.set_zlabel('Z')
+    axes.set_xlim3d(-20, 20)
+    axes.set_ylim3d(-20, 20)
+    axes.set_zlim3d(-10, 300)
+    axes.invert_yaxis()
+    axes.invert_zaxis()
+    axes.view_init(elev=elev, azim=azim, vertical_axis='y')
+
+    # cv triangulation
+    axes = fig.add_subplot(rows, cols, 2, projection='3d')
+    axes.set_title("second point cloud")
+    axes.scatter(second_claud[:, 0], second_claud[:, 1], second_claud[:, 2])
+    axes.scatter3D(0, 0, 0, c='red', s=60, marker='^')  # Camera
+
+    axes.set_xlabel('X')
+    axes.set_ylabel('Y')
+    axes.set_zlabel('Z')
+    axes.set_xlim3d(-20, 20)
+    axes.set_ylim3d(-20, 20)
+    axes.set_zlim3d(-10, 300)
+    axes.invert_yaxis()
+    axes.invert_zaxis()
+    axes.view_init(elev=elev, azim=azim, vertical_axis='y')
+
+    plt.show()
