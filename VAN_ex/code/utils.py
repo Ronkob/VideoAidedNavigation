@@ -215,7 +215,7 @@ def display_2_point_clouds(first_cloud, second_claud, txt, elev=60, azim=10):
 
     # our triangulation
     axes = fig.add_subplot(rows, cols, 1, projection='3d')
-    axes.set_title("first point cloud")
+    axes.set_title("First Point Cloud")
     axes.scatter3D(0, 0, 0, c='red', s=60, marker='^')  # Camera
     axes.scatter3D(first_cloud[:, 0], first_cloud[:, 1], first_cloud[:, 2])
 
@@ -231,7 +231,7 @@ def display_2_point_clouds(first_cloud, second_claud, txt, elev=60, azim=10):
 
     # cv triangulation
     axes = fig.add_subplot(rows, cols, 2, projection='3d')
-    axes.set_title("second point cloud")
+    axes.set_title("Second Point Cloud")
     axes.scatter(second_claud[:, 0], second_claud[:, 1], second_claud[:, 2])
     axes.scatter3D(0, 0, 0, c='red', s=60, marker='^')  # Camera
 
