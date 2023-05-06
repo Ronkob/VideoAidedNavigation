@@ -46,7 +46,7 @@ def create_point_cloud(idx):
     return p3d
 
 
-def calculate_pnp(point_cloud, left1_matching_loc, calib_mat):
+def calculate_pnp(point_cloud, left1_matching_loc, calib_mat, flag=cv2.SOLVEPNP_AP3P):
     """
     Calculate the PnP algorithm.
     """
@@ -58,7 +58,7 @@ def calculate_pnp(point_cloud, left1_matching_loc, calib_mat):
 
     success, rotation_vector, translation_vector = \
         cv2.solvePnP(point_cloud, left1_matching_loc, calib_mat, None,
-                     flags=cv2.SOLVEPNP_AP3P)
+                     flags=flag)
     ex_cam_mat = None
 
     if success:
@@ -114,8 +114,8 @@ def plot_relative_pos(left0_camera, right0_camera, left1_camera, right1_camera):
     plt.xlabel("x")
     plt.ylabel("z")
     ax.legend()
-    # ax.set_xlim(-2, 2)
-    # ax.set_ylim(-10, 20)
+    ax.set_xlim(-2, 2)
+    ax.set_ylim(-10, 20)
     plt.show()
 
 
@@ -196,13 +196,14 @@ def find_matching_features_successive(left0_image, right0_image, left1_image, ri
     return pictures, inliers
 
 
-def calc_ext_mat_from_sample_idxs(sample_idxs, left1_inliers, pair0_p3d, k):
+def calc_ext_mat_from_sample_idxs(sample_idxs, left1_inliers, pair0_p3d, k,
+                                  flag=cv2.SOLVEPNP_AP3P):
     """
     Find pnp from 4 sample points.
     """
     pnp_3d_pts = pair0_p3d[sample_idxs]  # Choose 4 key-points
     pnp_left1_pts = left1_inliers[sample_idxs]  # Choose matching 3D locations
-    return calculate_pnp(pnp_3d_pts, pnp_left1_pts, k)  # Estimate the extrinsic camera matrix [R|t] of left1.
+    return calculate_pnp(pnp_3d_pts, pnp_left1_pts, k, flag=flag)  # Estimate the extrinsic camera matrix [R|t] of left1.
 
 
 def calculate_T_and_right_T(left1_ext_mat, k, m2):
@@ -235,7 +236,7 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2):
 
         if len(supporters_idx) > best_num_supporters:
             best_num_supporters = len(supporters_idx)
-            best_ext_mat = left1_ext_mat
+            # best_ext_mat = left1_ext_mat
             best_supporters = supporters_idx
 
         # Update Ransac parameters
@@ -245,7 +246,13 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2):
         eps = min(sum_outliers / len(left1_inliers), eps)
         estimated_iters = estimate_iterations(p, eps)
 
-    return best_ext_mat, best_supporters
+    # Refinement
+    left_ext_mat = calc_ext_mat_from_sample_idxs(best_supporters, left1_inliers, pair0_p3d, k, cv2.SOLVEPNP_ITERATIVE)
+    T, right_T = calculate_T_and_right_T(left_ext_mat, k, m2)
+    supporters_idx = recognize_supporters(pair0_p3d, T, left1_inliers, right_T,
+                                          right1_inliers)
+
+    return left_ext_mat, supporters_idx
 
 
 def track_movement_successive(idxs):
@@ -295,10 +302,9 @@ def track_movement_successive(idxs):
 
 def track_movement_all_movie():
     camera_pos = [np.array([0, 0, 0])]
-    for idx in range(40):
+    for idx in range(10):
         left_camera_pos, left_ext_mat = track_movement_successive([idx, idx + 1])
         camera_pos.append(camera_pos[-1] + left_camera_pos)
-    print(camera_pos)
     plot_camera_trajectory(camera_pos)
 
 
