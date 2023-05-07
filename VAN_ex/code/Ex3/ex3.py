@@ -1,4 +1,3 @@
-import os
 import cv2
 import numpy as np
 import VAN_ex.code.utils as utils
@@ -14,14 +13,14 @@ DIST_THRESH = 2
 def rodriguez_to_mat(rvec, tvec):
     """
     Uses a function in OpenCV that converts a rotation vector to a rotation
-     matrix. The function takes a 3 × 1 rotation vector as input and returns
-      a 3 × 3 rotation matrix.
+    matrix. The function takes a 3 × 1 rotation vector as input and returns
+    a 3 × 3 rotation matrix.
     """
     rot, _ = cv2.Rodrigues(rvec)
     return np.hstack((rot, tvec))
 
 
-def find_successive_matching_kps(left_matches, matches0, matches1):
+def find_matching_kps(left_matches, matches0, matches1):
     """
     Receives matches between pair0, pair1 and left0_left1, and returns all
     matches of pair0 and pair1 which have a match in the other pair.
@@ -47,17 +46,19 @@ def create_point_cloud(idx):
     return p3d
 
 
-def calculate_pnp(point_cloud, left1_matching_loc, calib_mat):
+def calculate_pnp(point_cloud, left1_matching_loc, calib_mat, flag=cv2.SOLVEPNP_AP3P):
     """
     Calculate the PnP algorithm.
     """
-    point_cloud, left1_matching_loc = np.unique(point_cloud, axis=0), np.unique(left1_matching_loc, axis=0)
+    # point_cloud, left1_matching_loc = \
+    #     np.unique(point_cloud, axis=0), np.unique(left1_matching_loc, axis=0)
+    #
+    # if len(point_cloud) != PNP_POINTS or len(left1_matching_loc) != PNP_POINTS:
+    #     return None
 
-    if len(point_cloud) != PNP_POINTS or len(left1_matching_loc) != PNP_POINTS:
-        return None
-
-    success, rotation_vector, translation_vector = cv2.solvePnP(point_cloud, left1_matching_loc, calib_mat, None,
-                                                                flags=cv2.SOLVEPNP_AP3P)
+    success, rotation_vector, translation_vector = \
+        cv2.solvePnP(point_cloud, left1_matching_loc, calib_mat, None,
+                     flags=flag)
     ex_cam_mat = None
 
     if success:
@@ -72,39 +73,7 @@ def calc_relative_camera_pos(ext_camera_mat):
      matrix.
     """
     R, t = ext_camera_mat[:, :3], ext_camera_mat[:, 3]
-    return -1 * ext_camera_mat[:, :3].T @ ext_camera_mat[:, 3]
-
-
-def calculate_camera_trajectory(relative_T_arr):
-    """
-    Calculate the camera trajectory according to the relative position of
-     each camera.
-    """
-    trajectory = []
-    for T in relative_T_arr:
-        trajectory.append(calc_relative_camera_pos(T))
-    return np.array(trajectory)
-
-
-def composite_transformations(T1, T2):
-    """
-    Calculate the composite transformation between two cameras.
-    """
-    R1, t1 = T1[:, :3], T1[:, 3]
-    R2, t2 = T2[:, :3], T2[:, 3]
-    return np.hstack((R1 @ R2, R1 @ t2 + t1))
-
-
-def calculate_relative_transformations(T_arr):
-    """
-    Calculate the relative transformations between each pair of cameras.
-    """
-    relative_T_arr = []
-    np.append(relative_T_arr, np.eye(4))
-
-    for i in range(1, len(T_arr)):
-        relative_T_arr.append(composite_transformations(T_arr[-1], T_arr[i]))
-    return np.array(relative_T_arr)
+    return -t
 
 
 def project_and_measure(p3d_pts, camera_mat, inliers):
@@ -173,7 +142,7 @@ def plot_matches_and_supporters(left0, left1, left0_inliers, left1_inliers, supp
     """
     fig = plt.figure()
     fig.suptitle(f"Left0 and Left1 matches & supporters \n"
-                 f"Number of supporters: {len(supporters_idx)} {len(supporters_idx) / len(left0_inliers) * 100:.2f}%")
+                 f"Number of supporters: {len(supporters_idx)}, {len(supporters_idx) / len(left0_inliers) * 100:.2f}%")
 
     fig.add_subplot(2, 1, 1)
     plt.imshow(left0, cmap='gray')
@@ -189,7 +158,7 @@ def plot_matches_and_supporters(left0, left1, left0_inliers, left1_inliers, supp
     plt.scatter(left1_inliers[:, 0], left1_inliers[:, 1], s=3, color='blue')
     plt.scatter(left1_inliers[supporters_idx][:, 0], left1_inliers[supporters_idx][:, 1], s=3, color='cyan')
 
-    # plt.show()
+    plt.show()
 
 
 def get_pair_matches(left_image, right_image):
@@ -218,7 +187,7 @@ def find_matching_features_successive(left0_image, right0_image, left1_image, ri
     left_successive_matches, _, _ = utils.get_matches(left0_image, left1_image)
 
     # Section 3.3 - calculate the extrinsic camera matrix [R|t] of left1.
-    pairs0, pairs1 = find_successive_matching_kps(left_successive_matches, pair0_dict, pair1_dict)
+    pairs0, pairs1 = find_matching_kps(left_successive_matches, pair0_dict, pair1_dict)
     pair0_matches, pair1_matches = matches0[pairs0], matches1[pairs1]
     left0_inliers, right0_inliers = utils.matches_to_pts(pair0_matches, left0_image_kp, right0_image_kp)
     left1_inliers, right1_inliers = utils.matches_to_pts(pair1_matches, left1_image_kp, right1_image_kp)
@@ -227,11 +196,14 @@ def find_matching_features_successive(left0_image, right0_image, left1_image, ri
     return pictures, inliers
 
 
-def calc_ext_mat_from_sample_idxs(sample_idxs, left1_inliers, pair0_p3d, k):
-    """ find pnp from 4 sample points """
+def calc_ext_mat_from_sample_idxs(sample_idxs, left1_inliers, pair0_p3d, k,
+                                  flag=cv2.SOLVEPNP_AP3P):
+    """
+    Find pnp from 4 sample points.
+    """
     pnp_3d_pts = pair0_p3d[sample_idxs]  # Choose 4 key-points
     pnp_left1_pts = left1_inliers[sample_idxs]  # Choose matching 3D locations
-    return calculate_pnp(pnp_3d_pts, pnp_left1_pts, k)  # Estimate the extrinsic camera matrix [R|t] of left1.
+    return calculate_pnp(pnp_3d_pts, pnp_left1_pts, k, flag=flag)  # Estimate the extrinsic camera matrix [R|t] of left1.
 
 
 def calculate_T_and_right_T(left1_ext_mat, k, m2):
@@ -239,42 +211,55 @@ def calculate_T_and_right_T(left1_ext_mat, k, m2):
     return k @ left1_ext_mat, k @ right1_ext_mat
 
 
+def estimate_iterations(p, eps):
+    """
+    Calculate lower bound of N1 (Number of iterations for Ransac).
+    """
+    return int(np.log(1-p) / np.log(1-np.power(1-eps, PNP_POINTS)))
+
+
 def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2):
     """
-    calculates findpnp with ransac
-    :param pair0_p3d: first pair points in 3d space in poir0 coordinate space
-    :param left1_mat: left pair1 camera extrinsic matrix
-    :param left1_inliers: left pair1 inliers
-    :param right1_mat: right pair1 camera extrinsic matrix
-    :param right1_inliers: right pair1 inliers
-    :return: best_T, supporters_idx
+    Calculates PnP using Ransac.
     """
-    best_num_supporters = 0
-    best_idx = np.zeros(PNP_POINTS)
-    best_ext_mat = None
-    best_supporters = None
+    best_num_supporters, best_ext_mat, best_supporters = 0, None, None
+    N1, p, eps, sum_outliers, sum_inliers = 0, 0.99, 0.99, 0, 0  # To bound number of iterations
+    estimated_iters = estimate_iterations(p, eps)
 
-    for _ in range(300):
-        # random sample 4 points
-        random_idx = np.random.choice(len(pair0_p3d), size=PNP_POINTS, replace=False)
-        left1_ext_mat = calc_ext_mat_from_sample_idxs(random_idx, left1_inliers, pair0_p3d, k)  # find pnp
+    while N1 < estimated_iters and eps > 0:
+        random_idx = np.random.choice(len(pair0_p3d), size=PNP_POINTS, replace=False)  # Random sample 4 points
+        left1_ext_mat = calc_ext_mat_from_sample_idxs(random_idx, left1_inliers, pair0_p3d, k)  # Find P4P
         if left1_ext_mat is None:
             continue
         T, right_T = calculate_T_and_right_T(left1_ext_mat, k, m2)
         supporters_idx = recognize_supporters(pair0_p3d, T, left1_inliers, right_T, right1_inliers)
 
         if len(supporters_idx) > best_num_supporters:
-            best_idx = random_idx
             best_num_supporters = len(supporters_idx)
-            best_ext_mat = left1_ext_mat
+            # best_ext_mat = left1_ext_mat
             best_supporters = supporters_idx
 
-    return best_ext_mat, best_supporters
+        # Update Ransac parameters
+        N1 += 1
+        sum_outliers += len(left1_inliers) - len(supporters_idx)
+        sum_inliers += len(supporters_idx)
+        eps = min(sum_outliers / len(left1_inliers), eps)
+        estimated_iters = estimate_iterations(p, eps)
+
+    # Refinement
+    left_ext_mat = calc_ext_mat_from_sample_idxs(best_supporters, left1_inliers, pair0_p3d, k, cv2.SOLVEPNP_ITERATIVE)
+    T, right_T = calculate_T_and_right_T(left_ext_mat, k, m2)
+    supporters_idx = recognize_supporters(pair0_p3d, T, left1_inliers, right_T,
+                                          right1_inliers)
+
+    return left_ext_mat, supporters_idx
 
 
 def track_movement_successive(idxs):
-    """sections 3.2 - 3.5"""
-    # section 3.2 - match features between two left images
+    """
+    Sections 3.2 - 3.5
+    """
+    # Section 3.2 - match features between two left images
     left0_image, right0_image = ex1_utils.read_images(idxs[0])
     left1_image, right1_image = ex1_utils.read_images(idxs[1])
     photos, inliers = find_matching_features_successive(left0_image, right0_image, left1_image, right1_image)
@@ -285,10 +270,12 @@ def track_movement_successive(idxs):
     pair0_p3d = utils.triangulate_points(k @ m1, k @ m2, left0_inliers, right0_inliers)
     pair1_p3d = utils.triangulate_points(k @ m1, k @ m2, left1_inliers, right1_inliers)
 
-    left1_ext_mat = calc_ext_mat_from_sample_idxs(np.arange(PNP_POINTS), left1_inliers, pair0_p3d, k)
+    left1_ext_mat = calc_ext_mat_from_sample_idxs(np.arange(PNP_POINTS),
+                                                  left1_inliers, pair0_p3d, k)
     if left1_ext_mat is None:
         left1_ext_mat, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2)
         plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx)
+
     # Section 3.4 - Recognize supporters for the ext_mat
     T, right_T = calculate_T_and_right_T(left1_ext_mat, k, m2)
     supporters_idx = recognize_supporters(pair0_p3d, T, left1_inliers, right_T, right1_inliers)
@@ -299,46 +286,44 @@ def track_movement_successive(idxs):
     best_ext_mat, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers, k, m2)
     plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx)
 
-    # section 3.3.2 - plot the relative position of the four cameras
+    # Section 3.3.2 - plot the relative position of the four cameras
     left1_cam_pos = plot_relative_camera_positions(best_ext_mat, m1, m2)
 
-    utils.display_2_point_clouds(pair0_p3d, pair1_p3d, "second clouds")
+    utils.display_2_point_clouds(pair0_p3d, pair1_p3d, "Second Clouds")
     proj_no_ransac = pair0_p3d @ left1_ext_mat
     proj_ransac = pair0_p3d @ best_ext_mat
     utils.display_point_cloud(pair1_p3d, proj_no_ransac,
-                              ["third cloud", "pair 1 points", "transformed pair 0 points, no ransac"])
+                              ["Third Cloud", "pair 1 points", "transformed pair 0 points, no ransac"])
     utils.display_point_cloud(pair1_p3d, proj_ransac,
-                              ["forth cloud", "pair 1 points", "transformed pair 0 points, ransac"])
+                              ["Forth Cloud", "pair 1 points", "transformed pair 0 points, ransac"])
 
-    return best_ext_mat
+    return left1_cam_pos, best_ext_mat
 
 
 def track_movement_all_movie():
     camera_pos = [np.array([0, 0, 0])]
-    ext_mat = []
-    for idx in range(2):
+    for idx in range(10):
         left_camera_pos, left_ext_mat = track_movement_successive([idx, idx + 1])
-        camera_pos.append(left_camera_pos)
-    # print(camera_pos)
+        camera_pos.append(camera_pos[-1] + left_camera_pos)
     plot_camera_trajectory(camera_pos)
 
 
 def run_ex3():
-    np.random.seed(2)
+    np.random.seed(1)
     """
     Runs all exercise 3 sections.
     """
-
     idxs = [0, 1]
     # Section 3.1 - Create two point clouds - for pair0 and pair1
     cloud0 = create_point_cloud(idxs[0])
     cloud1 = create_point_cloud(idxs[1])
-    utils.display_2_point_clouds(cloud0, cloud1, "first clouds")
+    utils.display_2_point_clouds(cloud0, cloud1, "First Clouds")
 
-    # sections 3.2 - 3.5
+    # Sections 3.2 - 3.5
     track_movement_successive(idxs)
 
-    # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.  # track_movement_all_movie()
+    # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.
+    # track_movement_all_movie()
 
 
 def main():

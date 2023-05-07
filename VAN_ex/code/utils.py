@@ -198,7 +198,7 @@ def display_point_cloud(first_cloud, second_claud, txt, elev=60, azim=10):
     axes.invert_zaxis()
     axes.view_init(elev=elev, azim=azim, vertical_axis='y')
     plt.legend()
-    # plt.show()
+    plt.show()
 
 
 def display_2_point_clouds(first_cloud, second_claud, txt, elev=60, azim=10):
@@ -245,4 +245,4 @@ def display_2_point_clouds(first_cloud, second_claud, txt, elev=60, azim=10):
     axes.invert_zaxis()
     axes.view_init(elev=elev, azim=azim, vertical_axis='y')
 
-    # plt.show()
+    plt.show()
