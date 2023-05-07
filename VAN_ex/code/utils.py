@@ -1,4 +1,6 @@
 import os.path
+import time
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,6 +9,20 @@ DATA_PATH = os.path.join('..', 'dataset', 'sequences', '05')
 N_FEATURES = 500
 RATIO = 0.6
 DIFF = 2
+ALGORITHM = cv2.AKAZE_create()
+
+
+# a decorator to measure the time of a function
+def measure_time(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        func(*args, **kwargs)
+        end_time = time.time()
+        # prints the time in minutes and seconds and to the 3rd digit after the dot
+        print("Execution time: ", round((end_time - start_time) / 60, 3), " minutes and ",
+              round((end_time - start_time) % 60, 3), " seconds")
+
+    return wrapper
 
 
 def read_images(idx):
@@ -76,7 +92,7 @@ def get_matches(img1, img2):
     """
     Returns matches from 2 images.
     """
-    algorithm = cv2.SIFT_create(nfeatures=N_FEATURES)
+    algorithm = ALGORITHM
     left_image_kp, left_image_desc, right_image_kp, right_image_desc = detect_and_extract(algorithm, img1, img2)
     return match(left_image_desc, right_image_desc), left_image_kp, right_image_kp
 
@@ -184,10 +200,12 @@ def display_point_cloud(first_cloud, second_claud, txt, elev=60, azim=10):
     # first point cloud
     axes = fig.add_subplot(rows, cols, 1, projection='3d')
     axes.scatter3D(0, 0, 0, c='red', s=60, marker='^')  # Camera
-    axes.scatter3D(first_cloud[:, 0], first_cloud[:, 1], first_cloud[:, 2], marker='^', alpha=0.5, color='orange', label=txt[1])
+    axes.scatter3D(first_cloud[:, 0], first_cloud[:, 1], first_cloud[:, 2], marker='^', alpha=0.5, color='orange',
+                   label=txt[1])
 
     # second point cloud
-    axes.scatter(second_claud[:, 0], second_claud[:, 1], second_claud[:, 2], marker='o', alpha=0.5, color='cyan', label=txt[2])
+    axes.scatter(second_claud[:, 0], second_claud[:, 1], second_claud[:, 2], marker='o', alpha=0.5, color='cyan',
+                 label=txt[2])
     axes.set_xlabel('X')
     axes.set_ylabel('Y')
     axes.set_zlabel('Z')
