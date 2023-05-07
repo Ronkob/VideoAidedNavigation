@@ -19,7 +19,7 @@ def measure_time(func):
         func(*args, **kwargs)
         end_time = time.time()
         # prints the time in minutes and seconds and to the 3rd digit after the dot
-        print("Execution time: ", round((end_time - start_time) / 60, 3), " minutes and ",
+        print("Execution time: ", round((end_time - start_time) / 60, 0), " minutes and ",
               round((end_time - start_time) % 60, 3), " seconds")
 
     return wrapper
