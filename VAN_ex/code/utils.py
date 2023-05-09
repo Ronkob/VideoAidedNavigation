@@ -215,7 +215,9 @@ def display_point_cloud(first_cloud, second_claud, txt, elev=60, azim=10):
     axes.invert_yaxis()
     axes.invert_zaxis()
     axes.view_init(elev=elev, azim=azim, vertical_axis='y')
-    plt.legend()
+    # view legend in a meaningful location
+    axes.legend(loc='upper left')
+    # plt.legend()
     plt.show()
 
 

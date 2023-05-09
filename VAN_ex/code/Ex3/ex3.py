@@ -9,7 +9,7 @@ import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex2.ex2 as ex2_utils
 
 # Constants #
-MOVIE_LENGTH = 600
+MOVIE_LENGTH = 2559
 CAM_TRAJ_PATH = os.path.join('..', '..', 'dataset', 'poses', '05.txt')
 N_FEATURES = 1000
 PNP_POINTS = 4
@@ -237,7 +237,7 @@ def get_pair_matches(left_image, right_image):
 def plot_relative_camera_positions(left1_ext_mat, mat1, mat2):
     left0_cam, right0_cam = calc_relative_camera_pos(mat1), calc_relative_camera_pos(mat2)
     left1_cam = calc_relative_camera_pos(left1_ext_mat)
-    right1_ext_mat = composite_transformations(mat1, mat2)
+    right1_ext_mat = composite_transformations(left1_ext_mat, mat2)
     right1_cam = calc_relative_camera_pos(right1_ext_mat)  # left0 -> right0 -> right1
     plot_relative_pos(left0_cam, right0_cam, left1_cam, right1_cam)
     return left1_cam
@@ -456,10 +456,10 @@ def run_ex3():
     Runs all exercise 3 sections.
     """
     # Sections 3.1 - 3.5
-    # one_run_over_ex3([0, 1])
+    one_run_over_ex3([0, 1])
 
     # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.
-    track_movement_all_movie()
+    # track_movement_all_movie()
 
 
 def main():
