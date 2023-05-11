@@ -9,6 +9,11 @@ In this project we will implement a SLAM algorithm.
 SLAM stands for Simultaneous Localization and Mapping.
 This means that we will create a map of the environment, and at the same time we will localize ourselves in the map.
 
+<img src=VAN_ex/media/path_start_gif.gif width="500" height="" alt="">
+
+## show stuff from media directory
+<img src=VAN_ex/media/trajectory.png width="500" height="" alt="initial trajectory">
+
 ## part 1 - ex1 folder
 connecting the stereo by detecting features in the images and matching them.
 
