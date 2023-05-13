@@ -34,22 +34,20 @@ class Track:
     A track is a 3D landmark that was matched across multiple pairs of stereo images (frames).
     """
 
-    def __init__(self, track_id, frame_ids, kp, desc):
+    def __init__(self, track_id, frame_ids, kp):
         """
         Initialize a track.
         :param track_id: Track ID.
         :param frame_ids: Frame IDs.
-        :param kp: Key-points.
-        :param desc: Descriptors.
+        :param kp: list of tuples of key points in both images, for each frame.
         """
         self.track_id = track_id
         self.frame_ids = frame_ids
-        self.kp = kp
-        self.desc = desc
+        self.kp = kp  # dictionary of tuples of lists of key-points, each tuple is a pair of key-points
 
     def __str__(self):
         return f"Track ID: {self.track_id}, Frame IDs: {self.frame_ids}, " \
-               f"Key-points: {len(self.kp)}, Descriptors: {len(self.desc)}"
+               f"Key-points: {len(self.kp)}"
 
     def __repr__(self):
         return str(self)
@@ -59,6 +57,18 @@ class Track:
 
     def get_frame_ids(self):
         return self.frame_ids
+
+    def add_frame(self, frame_id, curr_kp, next_kp):
+        """
+        Add a frame to the track.
+        :param frame_id: Frame ID.
+        :param kp: list of tuples of key points in both images, for each frame.
+        """
+        kp_to_keep = [kp for kp in self.kp[self.frame_ids[-1]][0] if kp in curr_kp[0]]
+        # idx of kp in curr_kp that are in kp_to_keep
+        idx_to_keep = [np.where(curr_kp[0] == kp)[0][0] for kp in kp_to_keep]
+        self.kp[frame_id] = next_kp[0][idx_to_keep], next_kp[1][idx_to_keep]
+        self.frame_ids.append(frame_id)
 
 
 class TracksDB:
@@ -129,9 +139,53 @@ class TracksDB:
 
     # Implement an ability to extend the database with new tracks on a new frame as we match new stereo pairs to the
     # previous ones.
-    def extend_tracks(self, frame_id, kp, desc):
-        # todo: implement
-        pass
+    def extend_tracks(self, frame_id, curr_frame_supporters_kp, next_frame_supporters_kp):
+        """
+        get the matches of a new frame, and add the matches that consistent with the previous frames in the tracks
+        as a new frame in every track.
+        """
+        # treats the kps as unique objects
+        # get the tracks that include the previous frame_id
+        relevant_tracks = [track_id for track_id in self.track_ids if frame_id - 1 in self.tracks[track_id].frame_ids]
+        # get the tracks that include the curr_frame_supporters_kp in the previous frame
+        relevant_tracks = [track_id for track_id in relevant_tracks if
+                           any(kp in self.tracks[track_id].kp[frame_id - 1][0] for kp in curr_frame_supporters_kp[0])
+                           and
+                           any(kp in self.tracks[track_id].kp[frame_id - 1][1] for kp in curr_frame_supporters_kp[1])]
+
+        # add a new frame to every fitting track with the new frame supporters_kp
+        for track_id in relevant_tracks:
+            track = self.tracks[track_id]
+            track.add_frame(frame_id, curr_frame_supporters_kp, next_frame_supporters_kp)
+
+        # get the set of kp in the relevant tracks
+        relevant_kp = {}
+        for track_id in relevant_tracks:
+            relevant_kp.update(self.tracks[track_id].kp)
+
+        # get the matches that are not in the relevant tracks
+        new_matches = (left_kp, right_kp) = next_frame_supporters_kp
+
+        # add the new track to the tracks db
+        self.add_new_track(Track(self.get_new_id(), [frame_id], {frame_id: new_matches}))
+
+    # Implement an ability to add a new track to the database.
+    def add_new_track(self, track):
+        """
+        Add a new track to the database.
+        :param track: Track to add.
+        """
+        self.tracks[track.track_id] = track
+        self.frame_ids += track.frame_ids
+        self.track_ids.append(track.track_id)
+
+    def get_new_id(self):
+        """
+        Get a new track ID.
+        :return: New track ID.
+        """
+        self.track_id += 1
+        return self.track_id - 1
 
     # Implement functions to serialize the database to a file and read it from a file.
     def serialize(self, file_name):
@@ -187,11 +241,26 @@ class TracksDB:
         print('Minimum track length: {}'.format(min_track_length))
         print('Mean number of frame links: {}'.format(mean_num_frame_links))
 
+
+def run_sequence(start_frame, end_frame):
+    db = TracksDB()
+    for idx in range(start_frame, end_frame):
+        left_ext_mat, inliers = ex3_utils.track_movement_successive([idx, idx + 1])
+        if left_ext_mat is not None:
+            left0_kp, right0_kp, left1_kp, right1_kp = inliers
+            db.extend_tracks(idx, (left0_kp, right0_kp), (left1_kp, right1_kp))
+
+        print(" -- step {} -- ".format(idx))
+
+    db.get_statistics()
+
+
 def run_ex4():
     np.random.seed(1)
     """
     Runs all exercise 4 sections.
     """
+    run_sequence(0, 50)
 
 
 def main():

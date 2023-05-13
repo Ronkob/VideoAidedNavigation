@@ -356,7 +356,9 @@ def track_movement_successive(idxs):
     best_ext_mat, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers)
     # plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx)
 
-    return best_ext_mat
+    inliers = (left0_inliers[supporters_idx], right0_inliers[supporters_idx], left1_inliers[supporters_idx],
+               right1_inliers[supporters_idx])
+    return best_ext_mat, inliers
 
 
 def one_run_over_ex3(idxs):
@@ -435,7 +437,7 @@ def track_movement_all_movie():
         # print status of loop execution every 5 iterations
         if idx % 5 == 0:
             print("iteration number: ", idx)
-        left_ext_mat = track_movement_successive([idx, idx + 1])
+        left_ext_mat, _ = track_movement_successive([idx, idx + 1])
         T_arr.append(left_ext_mat)
 
     # save the T_arr to numpy file
