@@ -3,7 +3,10 @@ import pickle
 import time
 
 import cv2
+import imageio
 import numpy as np
+from matplotlib import animation
+
 import VAN_ex.code.utils as utils
 import matplotlib.pyplot as plt
 import VAN_ex.code.Ex1.ex1 as ex1_utils
@@ -148,10 +151,9 @@ class TracksDB:
         # get the tracks that include the previous frame_id
         relevant_tracks = [track_id for track_id in self.track_ids if frame_id - 1 in self.tracks[track_id].frame_ids]
         # get the tracks that include the curr_frame_supporters_kp in the previous frame
-        relevant_tracks = [track_id for track_id in relevant_tracks if
-                           any(kp in self.tracks[track_id].kp[frame_id - 1][0] for kp in curr_frame_supporters_kp[0])
-                           and
-                           any(kp in self.tracks[track_id].kp[frame_id - 1][1] for kp in curr_frame_supporters_kp[1])]
+        relevant_tracks = [track_id for track_id in relevant_tracks if any(
+            kp in self.tracks[track_id].kp[frame_id - 1][0] for kp in curr_frame_supporters_kp[0]) and any(
+            kp in self.tracks[track_id].kp[frame_id - 1][1] for kp in curr_frame_supporters_kp[1])]
 
         # add a new frame to every fitting track with the new frame supporters_kp
         for track_id in relevant_tracks:
@@ -242,6 +244,31 @@ class TracksDB:
         print('Mean number of frame links: {}'.format(mean_num_frame_links))
 
 
+# create a gif of some frames of the video
+def create_gif(start_frame, end_frame, tracks_db):
+    # add the frames to a list
+    images = []
+    for frame in range(start_frame, end_frame):
+        left0_image, _ = ex1_utils.read_images(frame)
+        images.append(left0_image)
+
+    fig, axes = plt.subplots(figsize=(12, 6))
+    plt.axis("off")
+    fig.suptitle(f"Run", fontsize=16)
+    fig.tight_layout()
+    ims = [[axes.imshow(i, animated=True, cmap='gray')] for i in images]
+    # add a scatter plot of the tracks
+    for track_id in [tracks_db.track_ids[0]]:
+        track = tracks_db.tracks[track_id]
+        for i, frame_id in enumerate(track.frame_ids):
+            ims[i].append(
+                axes.scatter([kp[0] for kp in track.kp[frame_id][0]], [kp[1] for kp in track.kp[frame_id][0]],
+                            color='red'))
+
+    ani = animation.ArtistAnimation(fig, ims, interval=100, repeat_delay=3000, blit=True)
+    ani.save('run.gif', writer='imagemagick')
+
+
 def run_sequence(start_frame, end_frame):
     db = TracksDB()
     for idx in range(start_frame, end_frame):
@@ -253,6 +280,7 @@ def run_sequence(start_frame, end_frame):
         print(" -- step {} -- ".format(idx))
 
     db.get_statistics()
+    return db
 
 
 def run_ex4():
@@ -260,7 +288,8 @@ def run_ex4():
     """
     Runs all exercise 4 sections.
     """
-    run_sequence(0, 50)
+    tracks_db = run_sequence(0, 35)
+    create_gif(0, 35, tracks_db)
 
 
 def main():
