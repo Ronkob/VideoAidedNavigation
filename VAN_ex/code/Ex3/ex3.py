@@ -293,7 +293,6 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers):
     """
     best_num_supporters, best_ext_mat, best_supporters = 0, None, None
     N1, p, eps, sum_outliers, sum_inliers = 0, 0.999, 0.99, 0, 0  # To bound number of iterations
-    estimated_iters = estimate_iterations(p, eps)
 
     while eps != 0 and (N1 < estimate_iterations(p, eps)) and N1 < MAX_RANSAC_ITERATIONS:
         random_idx = np.random.choice(len(pair0_p3d), size=PNP_POINTS, replace=False)  # Random sample 4 points
@@ -315,9 +314,8 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers):
         sum_outliers += (len(left1_inliers) - len(supporters_idx))
         sum_inliers += len(supporters_idx)
         eps = min(sum_outliers / (sum_inliers + sum_outliers), 0.99)
-        # estimated_iters = estimate_iterations(p, eps)
-        if (eps == 0):
-            print("eps is zero")
+        # if (eps == 0):
+        #     print("eps is zero")
 
 
     # Refinement

@@ -23,18 +23,12 @@ MAX_RANSAC_ITERATIONS = 5000
 k, m1, m2 = ex2_utils.read_cameras()
 
 
-# 4.1 We call a 3D landmark that was matched across multiple pairs of stereo images (frames) a track.
-# In the previous exercise we recognized tracks of length 2 (matched over two pairs of images),
-# but we hope to extend the tracks by matching features over more pairs.
-# Implement a suitable database for the tracks.
-# • Every track should have a unique id, we will refer to it as TrackId.
-# • Every image stereo pair should have a unique id, we will refer to it as FrameId.
-# • Implement a function that returns all the TrackIds that appear on a given FrameId.
-# • Implement a function that returns all the FrameIds that are part of a given TrackId.
 class Track:
     """
     A class that represents a track.
     A track is a 3D landmark that was matched across multiple pairs of stereo images (frames).
+    Every track will have a unique id, we will refer to it as track_id.
+    Every image stereo pair will have a unique id, we will refer to it as frame_id.
     """
 
     def __init__(self, track_id, frame_ids, kp):
@@ -46,8 +40,7 @@ class Track:
         """
         self.track_id = track_id
         self.frame_ids = frame_ids
-        self.kp = kp  # dictionary of tuples of lists of key-points, each tuple is a pair of key-points
-        self.kp_reduced = {}  # dictionary of tuples of lists of key-points, each tuple is a pair of key-points
+        self.kp = kp  # Dict of tuples of key-points, each tuple is a pair of key-points
 
     def __str__(self):
         return f"Track ID: {self.track_id}, Frame IDs: {self.frame_ids}, " \
@@ -66,7 +59,8 @@ class Track:
         """
         Add a frame to the track.
         :param frame_id: Frame ID.
-        :param kp: list of tuples of key points in both images, for each frame.
+        :param curr_kp: Key-points of the current frame.
+        :param next_kp: Key-points of the next frame.
         """
         kp_to_keep = [kp for kp in self.kp[self.frame_ids[-1]][0] if kp in curr_kp[0]]
         # idx of kp in curr_kp that are in kp_to_keep
@@ -75,6 +69,7 @@ class Track:
         self.frame_ids.append(frame_id)
 
 
+# Section 4.1
 class TracksDB:
     """
     A class that represents a database for tracks.
@@ -84,10 +79,10 @@ class TracksDB:
         """
         Initialize a tracks database.
         """
-        self.tracks = {}  # a dictionary of tracks
+        self.tracks = {}  # Dictionary of all tracks
         self.frame_ids = []
         self.track_ids = []
-        self.track_id = 0
+        self.track_id = 0  # Track ID counter
 
     def __str__(self):
         return f"Tracks: {self.tracks}, Frame IDs: {self.frame_ids}, " \
@@ -101,14 +96,14 @@ class TracksDB:
         Add a track to the database.
         :param track: Track to add.
         """
-        self.tracks[self.track_id] = track  # add track to tracks dictionary by track id key
+        self.tracks[self.track_id] = track  # Add track to tracks dictionary by track_id as key
         self.frame_ids += track.frame_ids
         self.track_ids.append(self.track_id)
         self.track_id += 1
 
     def get_track_ids(self, frame_id):
         """
-        Get all the TrackIds that appear on a given FrameId.
+        Get all the track_ids that appear on a given frame_id.
         :param frame_id: Frame ID.
         :return: Track IDs.
         """
@@ -116,19 +111,19 @@ class TracksDB:
 
     def get_frame_ids(self, track_id):
         """
-        Get all the FrameIds that are part of a given TrackId.
+        Get all the frame_ids that are part of a given track_id.
         :param track_id: Track ID.
         :return: Frame IDs.
         """
         return self.tracks[track_id].frame_ids
 
-    # a function that for a given (FrameId, TrackId) pair returns:
-    #    o Feature locations of track TrackId on both left and right images as a triplet (𝑥𝑙,𝑥𝑟,𝑦) with:
-    #       ▪ (𝑥𝑙,𝑦) the feature location on the left image
-    #       ▪ (𝑥𝑟,𝑦) the feature location on the right image Note that the 𝑦 index is shared on both images.
     def get_feature_locations(self, frame_id, track_id):
         """
-        Get feature locations of track TrackId on both left and right images.
+        Given track_id and frame_id, get feature locations of track on both
+         left and right images, as a triplet (xl, xr, y) with:
+         - (xl, y) the feature location on the left image
+         - (xr, y) the feature location on the right image.
+            Note that the y index is shared on both images.
         :param frame_id: Frame ID.
         :param track_id: Track ID.
         :return: Feature locations of track TrackId on both left and right images.
@@ -137,16 +132,16 @@ class TracksDB:
         frame_ids = track.frame_ids
         if frame_id not in frame_ids:
             return None
-        frame_index = frame_ids.index(frame_id)  # get the index of the frame id in the track
+        frame_index = frame_ids.index(frame_id)  # Get the index of the frame id in the track
         kp = track.kp[frame_index]
         return kp.pt
 
-    # Implement an ability to extend the database with new tracks on a new frame as we match new stereo pairs to the
-    # previous ones.
+    # Implement an ability to extend the database with new tracks on a new
+    # frame as we match new stereo pairs to the previous ones.
     def extend_tracks(self, frame_id, curr_frame_supporters_kp, next_frame_supporters_kp):
         """
-        get the matches of a new frame, and add the matches that consistent with the previous frames in the tracks
-        as a new frame in every track.
+        Get the matches of a new frame, and add the matches that consistent
+         with the previous frames in the tracks as a new frame in every track.
         """
         # treats the kps as unique objects
         # get the tracks that include the previous frame_id
@@ -209,14 +204,10 @@ class TracksDB:
             tracks_db = pickle.load(file)
         return tracks_db
 
-    # 4.2 Present the following tracking statistics:
-    # • Total number of tracks
-    # • Number of frames
-    # • Mean track length, maximum and minimum track lengths
-    # • Mean number of frame links (number of tracks on an average image)
+    # Section 4.2
     def get_statistics(self):
         """
-        present a plot of the following tracking statistics:
+        Present a plot of the following tracking statistics:
         • Total number of tracks
         • Number of frames
         • Mean track length, maximum and minimum track lengths
@@ -286,10 +277,15 @@ def run_sequence(start_frame, end_frame):
         if left_ext_mat is not None:
             left0_kp, right0_kp, left1_kp, right1_kp = inliers
             db.extend_tracks(idx, (left0_kp, right0_kp), (left1_kp, right1_kp))
+            # Test functions
+            if idx == 5:
+                db.get_feature_locations(0, 0)
 
-        print(" -- step {} -- ".format(idx))
+        print(" -- Step {} -- ".format(idx))
 
+    # q4.2
     db.get_statistics()
+    db.serialize('tracks_db.pkl')
     return db
 
 
