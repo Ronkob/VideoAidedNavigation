@@ -270,6 +270,33 @@ def create_gif(start_frame, end_frame, tracks_db):
     ani.save('run.gif', writer='pillow', fps=5, dpi=100)
 
 
+def plot_connectivity_graph(tracks_db):
+    pass
+
+
+def plot_inliers_per_frame(tracks_db):
+    pass
+
+
+def plot_track_length_histogram(tracks_db):
+    pass
+
+
+def plot_reprojection_error(tracks_db):
+    # Read the ground truth camera matrices (in \poses\00.txt)
+
+    # Triangulate a 3d point in world coordinates from the features in the last frame of the track
+
+    # Project this point to all the frames of the track (both left and right cameras)
+
+    # We’ll define the reprojection error for a given camera as the distance between the projection
+    # and the tracked feature location on that camera.
+
+    # Present a graph of the reprojection error over the track’s images.
+
+    pass
+
+
 def run_sequence(start_frame, end_frame):
     db = TracksDB()
     for idx in range(start_frame, end_frame):
@@ -283,8 +310,6 @@ def run_sequence(start_frame, end_frame):
 
         print(" -- Step {} -- ".format(idx))
 
-    # q4.2
-    db.get_statistics()
     db.serialize('tracks_db.pkl')
     return db
 
@@ -294,8 +319,25 @@ def run_ex4():
     """
     Runs all exercise 4 sections.
     """
-    tracks_db = run_sequence(0, 50)
+    tracks_db = run_sequence(0, 50)  # Build the tracks database
+
+    # q4.2
+    tracks_db.get_statistics()
+
+    # q4.3
     create_gif(0, 50, tracks_db)
+
+    # q4.4
+    plot_connectivity_graph(tracks_db)
+
+    # q4.5
+    plot_inliers_per_frame(tracks_db)
+
+    # q4.6
+    plot_track_length_histogram(tracks_db)
+
+    # q4.7
+    plot_reprojection_error(tracks_db)
 
 
 def main():
