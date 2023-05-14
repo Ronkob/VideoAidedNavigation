@@ -47,6 +47,7 @@ class Track:
         self.track_id = track_id
         self.frame_ids = frame_ids
         self.kp = kp  # dictionary of tuples of lists of key-points, each tuple is a pair of key-points
+        self.kp_reduced = {}  # dictionary of tuples of lists of key-points, each tuple is a pair of key-points
 
     def __str__(self):
         return f"Track ID: {self.track_id}, Frame IDs: {self.frame_ids}, " \
@@ -264,15 +265,18 @@ def create_gif(start_frame, end_frame, tracks_db):
     colors = [cmap(i) for i in np.linspace(0, 1, len(tracks_db.track_ids))]
     # reverse order of tracks_db.track_ids
     reversed_idx = tracks_db.track_ids[::-1]
-    for track_id in reversed_idx:
+    # only tracks that have at least 10 frames
+    tracks_to_show = [track_id for track_id in reversed_idx if len(tracks_db.tracks[track_id].frame_ids) > 10]
+    for track_id in tracks_to_show:
         track = tracks_db.tracks[track_id]
         for i, frame_id in enumerate(track.frame_ids):
             ims[frame_id].append(
                 axes.scatter([kp[0] for kp in track.kp[frame_id][0]], [kp[1] for kp in track.kp[frame_id][0]],
-                             color=colors[track_id]))
+                             color=colors[track_id], animated=True))
 
-    ani = animation.ArtistAnimation(fig, ims, interval=100, repeat_delay=3000, blit=True)
-    ani.save('run.gif', writer='imagemagick')
+    ani = animation.ArtistAnimation(fig, ims, interval=50, repeat_delay=3000, blit=True)
+    # save but compress it first so it won't be too big
+    ani.save('run.gif', writer='pillow', fps=5, dpi=100)
 
 
 def run_sequence(start_frame, end_frame):
