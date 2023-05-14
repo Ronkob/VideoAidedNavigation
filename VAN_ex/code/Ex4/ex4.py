@@ -244,6 +244,7 @@ class TracksDB:
         print('Mean number of frame links: {}'.format(mean_num_frame_links))
 
 
+@utils.measure_time
 # create a gif of some frames of the video
 def create_gif(start_frame, end_frame, tracks_db):
     # add the frames to a list
@@ -258,12 +259,17 @@ def create_gif(start_frame, end_frame, tracks_db):
     fig.tight_layout()
     ims = [[axes.imshow(i, animated=True, cmap='gray')] for i in images]
     # add a scatter plot of the tracks
-    for track_id in [tracks_db.track_ids[0]]:
+    # create a dictionary of colors from mpl colormap
+    cmap = plt.get_cmap('gist_rainbow')
+    colors = [cmap(i) for i in np.linspace(0, 1, len(tracks_db.track_ids))]
+    # reverse order of tracks_db.track_ids
+    reversed_idx = tracks_db.track_ids[::-1]
+    for track_id in reversed_idx:
         track = tracks_db.tracks[track_id]
         for i, frame_id in enumerate(track.frame_ids):
-            ims[i].append(
+            ims[frame_id].append(
                 axes.scatter([kp[0] for kp in track.kp[frame_id][0]], [kp[1] for kp in track.kp[frame_id][0]],
-                            color='red'))
+                             color=colors[track_id]))
 
     ani = animation.ArtistAnimation(fig, ims, interval=100, repeat_delay=3000, blit=True)
     ani.save('run.gif', writer='imagemagick')
@@ -288,8 +294,8 @@ def run_ex4():
     """
     Runs all exercise 4 sections.
     """
-    tracks_db = run_sequence(0, 35)
-    create_gif(0, 35, tracks_db)
+    tracks_db = run_sequence(0, 50)
+    create_gif(0, 50, tracks_db)
 
 
 def main():

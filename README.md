@@ -24,3 +24,7 @@ this means that we will create a 3d scatter plot of the points in the environmen
 ## part 3 - ex3 folder
 now, once we have the map, we can use it to make the localization part of the SLAM.
 we will use the PNP algorithm, with added RANSAC and refinement.
+
+## part 4 - ex4 folder
+bla bla tracking of the tracks bla bla
+<img src=VAN_ex/code/Ex4/run.gif width="500" height="" alt="">
