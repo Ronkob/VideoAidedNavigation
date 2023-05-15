@@ -75,7 +75,8 @@ class Track:
 
     # get all the right kp of the track as a dictionary
     def get_right_kp(self):
-        return {kp:self.kp[kp][1] for kp in self.kp}
+        return {kp: self.kp[kp][1] for kp in self.kp}
+
 
 # Section 4.1
 class TracksDB:
@@ -129,7 +130,6 @@ class TracksDB:
     def remove_track(self, track_id):
         self.tracks.pop(track_id)
         self.track_ids.remove(track_id)
-
 
     # Implement an ability to extend the database with new tracks on a new
     # frame as we match new stereo pairs to the previous ones.
@@ -308,20 +308,29 @@ def plot_track(track):
     ims = []
     for frame_id in track.frame_ids:
         left0_image, right0_image = ex1_utils.read_images(frame_id)
-        x_cor = int(np.floor(track.kp[frame_id][0][0]))
-        y_cor = int(np.floor(track.kp[frame_id][0][1]))
-        left0_image = left0_image[y_cor - 50:y_cor + 50, x_cor - 50:x_cor + 50]
-        x_cor = int(np.floor(track.kp[frame_id][1][0]))
-        y_cor = int(np.floor(track.kp[frame_id][1][1]))
-        right0_image = right0_image[y_cor - 50:y_cor + 50, x_cor - 50:x_cor + 50]
+        left_x_cor = track.kp[frame_id][0][0]
+        left_y_cor = track.kp[frame_id][0][1]
+        right_x_cor = track.kp[frame_id][1][0]
+        right_y_cor = track.kp[frame_id][1][1]
+        left_x_cor_rounded = int(np.floor(left_x_cor))
+        left_y_cor_rounded = int(np.floor(left_y_cor))
+        right_x_cor_rounded = int(np.floor(right_x_cor))
+        right_y_cor_rounded = int(np.floor(right_y_cor))
+        left0_image = left0_image[left_y_cor_rounded - 50:left_y_cor_rounded + 50,
+                      left_x_cor_rounded - 50:left_x_cor_rounded + 50]
+        right0_image = right0_image[right_y_cor_rounded - 50:right_y_cor_rounded + 50,
+                       right_x_cor_rounded - 50:right_x_cor_rounded + 50]
 
-        ims.append([ax1.imshow(left0_image, cmap='gray'), ax2.imshow(right0_image, cmap='gray')])
+        ims.append([ax1.imshow(left0_image, cmap='gray'),
+                    ax1.scatter(50 + (left_x_cor - left_x_cor_rounded), 50 + (left_y_cor - left_y_cor_rounded),
+                                color='red', marker='^'), ax2.imshow(right0_image, cmap='gray'),
+                    ax2.scatter(50 + (right_x_cor - right_x_cor_rounded), 50 + (right_y_cor - right_y_cor_rounded),
+                                color='red', marker='^'), ])
     ani = animation.ArtistAnimation(fig, ims, interval=100)
     ani.save("track_cut_around.gif", writer="pillow", fps=5)
 
     plt.close()
     plt.clf()
-
 
 
 # Present a connectivity graph: For each frame, the number of tracks outgoing to the next frame (the number of tracks
@@ -333,7 +342,7 @@ def plot_connectivity_graph(tracks_db):
      links also in the next frame)
     """
     outgoing_tracks = []
-    frames = list(tracks_db.frame_ids)[:-1] # exclude the last frame
+    frames = list(tracks_db.frame_ids)[:-1]  # exclude the last frame
 
     for frame in frames:
         curr_tracks = tracks_db.get_track_ids(frame)
@@ -417,12 +426,13 @@ def plot_reprojection_error(tracks_db):
 
     last_left_img_coords = left_locations[track.frame_ids[-1]]
     last_right_img_coords = right_locations[track.frame_ids[-1]]
-    p3d = utils.triangulate_points(last_left_proj_mat, last_right_proj_mat, [last_left_img_coords], [last_right_img_coords])
+    p3d = utils.triangulate_points(last_left_proj_mat, last_right_proj_mat, [last_left_img_coords],
+                                   [last_right_img_coords])
 
     # Project this point to all the frames of the track (both left and right cameras)
     left_projections, right_projections = [], []
 
-    for gt_cam_mat in gt_cam_matrices[min(track.frame_ids):max(track.frame_ids)+1]:
+    for gt_cam_mat in gt_cam_matrices[min(track.frame_ids):max(track.frame_ids) + 1]:
         left_proj_cam = k @ gt_cam_mat
         left_projections.append(utils.project(p3d, left_proj_cam)[0])
 
@@ -449,7 +459,7 @@ def plot_reprojection_error(tracks_db):
     plt.title("Reprojection error over track's images")
     plt.ylabel('Error')
     plt.xlabel('Frames')
-    plt.scatter(range(min(track.frame_ids),max(track.frame_ids)+1), total_proj_dist)
+    plt.scatter(range(min(track.frame_ids), max(track.frame_ids) + 1), total_proj_dist)
     plt.show()
 
 
@@ -482,21 +492,15 @@ def run_ex4():
 
     # q4.3
     track = get_rand_track(10, tracks_db)
-    # plot_track(track)
+    plot_track(track)
 
-    #
-    # q4.4
-    # plot_connectivity_graph(tracks_db)
+    #  # q4.4  # plot_connectivity_graph(tracks_db)
 
-    #
-    # q4.5
-    # plot_inliers_per_frame(tracks_db)
+    #  # q4.5  # plot_inliers_per_frame(tracks_db)
 
-    # q4.6
-    # plot_track_length_histogram(tracks_db)
+    # q4.6  # plot_track_length_histogram(tracks_db)
 
-    # q4.7
-    plot_reprojection_error(tracks_db)
+    # q4.7  # plot_reprojection_error(tracks_db)
 
     # create_gif(START_FRAME, END_FRAME, tracks_db)
 
