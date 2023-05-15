@@ -340,7 +340,7 @@ def refine_ransac(best_supporters, left1_inliers, right1_inliers, pair0_p3d, ite
 
 def track_movement_successive(idxs):
     """
-
+    Track movement between two images.
     """
     left0_image, right0_image = ex1_utils.read_images(idxs[0])
     left1_image, right1_image = ex1_utils.read_images(idxs[1])

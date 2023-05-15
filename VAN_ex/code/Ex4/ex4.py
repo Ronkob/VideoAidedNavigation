@@ -1,12 +1,7 @@
 import os
 import pickle
-import time
-
-import cv2
-import imageio
 import numpy as np
 from matplotlib import animation
-from collections import defaultdict
 
 import VAN_ex.code.utils as utils
 import matplotlib.pyplot as plt
@@ -24,6 +19,7 @@ MAX_RANSAC_ITERATIONS = 1000
 START_FRAME = 0
 END_FRAME = 50
 TRACK_MIN_LEN = 10
+DB_PATH = "tracks_db.pkl"
 k, m1, m2 = ex2_utils.read_cameras()
 
 
@@ -116,8 +112,10 @@ class TracksDB:
         """
         return self.tracks[track_id].frame_ids
 
-    # remove tracks that are too short (less than 2 frames)
     def remove_short_tracks(self, short=2):
+        """
+        Remove tracks that are too short (less than 2 frames).
+        """
         id_to_remove = []
         for track_id in self.track_ids:
             if len(self.tracks[track_id].frame_ids) < short:
@@ -126,8 +124,11 @@ class TracksDB:
         for track_id in id_to_remove:
             self.remove_track(track_id)
 
-    # remove a track from the database
     def remove_track(self, track_id):
+        """
+        Remove a track from the database.
+        :param track_id: TrackID to remove.
+        """
         self.tracks.pop(track_id)
         self.track_ids.remove(track_id)
 
@@ -249,9 +250,11 @@ class TracksDB:
         print('Mean number of frame links: {}'.format(mean_num_frame_links))
 
 
-# create a gif of some frames of the video
 @utils.measure_time
 def create_gif(start_frame, end_frame, tracks_db):
+    """
+    Create a gif of some frames of the video.
+    """
     # add the frames to a list
     images = []
     for frame in range(start_frame, end_frame):
@@ -295,13 +298,14 @@ def get_rand_track(track_len, tracks):
     return track
 
 
-# Display the feature locations on all the relevant images.
-# Cut a region of 100x100 pixels (subject to image boundaries) around the feature from both left and right images and
-# mark the feature as a dot. Present this for all images in the track.
-def plot_track(track):
+def plot_random_track(tracks_db):
     """
-    Plot a track.
+    Randomize track, and display the feature locations on all the relevant
+    images. Cut a region of 100x100 pixels (subject to image boundaries)
+    around the feature from both left and right images andmark the feature
+    as a dot. Present this for all images in the track.
     """
+    track = get_rand_track(TRACK_MIN_LEN, tracks_db)
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
     ax1.set_title('Left image')
     ax2.set_title('Right image')
@@ -342,12 +346,12 @@ def plot_connectivity_graph(tracks_db):
      links also in the next frame)
     """
     outgoing_tracks = []
-    frames = list(tracks_db.frame_ids)[:-1]  # exclude the last frame
+    frames = list(tracks_db.frame_ids)[:-1]  # Exclude the last frame
 
     for frame in frames:
         curr_tracks = tracks_db.get_track_ids(frame)
         next_tracks = tracks_db.get_track_ids(frame + 1)
-        # count the shared tracks between the two frames
+        # Count the shared tracks between the two frames
         num_tracks = len(set(curr_tracks).intersection(next_tracks))
         outgoing_tracks.append(num_tracks)
 
@@ -375,10 +379,8 @@ def plot_inliers_per_frame(tracks_db):
 
 def plot_track_length_histogram(tracks_db):
     """
-    Present a track length histogram graph.
+    Present a track length histogram graph, according to the tracks in the db.
     """
-    # make a histogram of the track lengths throughout the tracks in the db
-    # (x-axis: track length, y-axis: number of tracks with this length)
     track_lengths = [len(tracks_db.tracks[track_id].frame_ids) for track_id in tracks_db.track_ids]
     x_axis = [i for i in range(max(track_lengths))]
     num_tracks = [track_lengths.count(i) for i in x_axis]
@@ -414,7 +416,6 @@ def plot_reprojection_error(tracks_db):
     gt_cam_matrices = ex3_utils.get_ground_truth_transformations()
 
     # Triangulate a 3d point in world coordinates from the features in the last frame of the track
-    np.random.seed(11)
     track = get_rand_track(TRACK_MIN_LEN, tracks_db)
 
     left_locations = track.get_left_kp()
@@ -450,9 +451,6 @@ def plot_reprojection_error(tracks_db):
 
     left_proj_dist = np.linalg.norm(left_projections - left_locations, axis=1)
     right_proj_dist = np.linalg.norm(right_projections - right_locations, axis=1)
-
-    # left_proj_dist = np.einsum("ij,ij->i", left_projections, left_locations)
-    # right_proj_dist = np.einsum("ij,ij->i", right_projections, right_locations)
     total_proj_dist = (left_proj_dist + right_proj_dist) / 2
 
     # Present a graph of the reprojection error over the track’s images.
@@ -473,34 +471,37 @@ def run_sequence(start_frame, end_frame):
             db.extend_tracks(idx, (left0_kp, right0_kp), (left1_kp, right1_kp))
         print(" -- Step {} -- ".format(idx))
     db.remove_short_tracks(short=2)
-    db.serialize('tracks_db.pkl')
+    db.serialize(DB_PATH)
     return db
 
 
 def run_ex4():
-    np.random.seed(1)
     """
     Runs all exercise 4 sections.
     """
+    np.random.seed(4)
     tracks_db = None
-    # tracks_db = run_sequence(START_FRAME, END_FRAME)  # Build the tracks database
+    ### tracks_db = run_sequence(0, MOVIE_LENGTH)  # Build the tracks database
+    if tracks_db is None:
+        tracks_db = TracksDB.deserialize(DB_PATH)
 
     # q4.2
     # tracks_db.get_statistics()
-    if tracks_db is None:
-        tracks_db = TracksDB.deserialize('tracks_db.pkl')
 
     # q4.3
-    track = get_rand_track(10, tracks_db)
-    plot_track(track)
+    # plot_random_track(tracks_db)
 
-    #  # q4.4  # plot_connectivity_graph(tracks_db)
+    # q4.4
+    # plot_connectivity_graph(tracks_db)
 
-    #  # q4.5  # plot_inliers_per_frame(tracks_db)
+    # q4.5
+    plot_inliers_per_frame(tracks_db)
 
-    # q4.6  # plot_track_length_histogram(tracks_db)
+    # q4.6
+    # plot_track_length_histogram(tracks_db)
 
-    # q4.7  # plot_reprojection_error(tracks_db)
+    # q4.7
+    # plot_reprojection_error(tracks_db)
 
     # create_gif(START_FRAME, END_FRAME, tracks_db)
 
