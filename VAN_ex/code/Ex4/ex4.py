@@ -22,7 +22,7 @@ PNP_POINTS = 4
 CONSENSUS_ACCURACY = 2
 MAX_RANSAC_ITERATIONS = 1000
 START_FRAME = 0
-END_FRAME = 200
+END_FRAME = 50
 TRACK_MIN_LEN = 10
 k, m1, m2 = ex2_utils.read_cameras()
 
@@ -48,7 +48,7 @@ class Track:
 
     def __str__(self):
         return f"Track ID: {self.track_id}, Frame IDs: {self.frame_ids}, " \
-               f"Key-points: {len(self.kp)}"
+               f"Key-points: {len(self.kp)}, length: {len(self.frame_ids)}"
 
     def __repr__(self):
         return str(self)
@@ -108,6 +108,21 @@ class TracksDB:
         """
         return self.tracks[track_id].frame_ids
 
+    # remove tracks that are too short (less than 2 frames)
+    def remove_short_tracks(self, short=2):
+        id_to_remove = []
+        for track_id in self.track_ids:
+            if len(self.tracks[track_id].frame_ids) < short:
+                id_to_remove.append(track_id)
+
+        for track_id in id_to_remove:
+            self.remove_track(track_id)
+
+    # remove a track from the database
+    def remove_track(self, track_id):
+        self.tracks.pop(track_id)
+        self.track_ids.remove(track_id)
+
     # Implement an ability to extend the database with new tracks on a new
     # frame as we match new stereo pairs to the previous ones.
     def extend_tracks(self, frame_id, curr_frame_supporters_kp, next_frame_supporters_kp):
@@ -130,6 +145,10 @@ class TracksDB:
                     taken_kp_idxs.append(i)
                     break  # advance to the next kp
 
+        # remove tracks that are too short (less than 2 frames)
+        self.remove_short_tracks(short=2)
+
+        # create new tracks for the kps that were not taken
         reminder_left_kp, reminder_right_kp = self.get_reminder_kp(taken_kp_idxs, next_frame_supporters_kp)
         self.create_new_tracks(frame_id, reminder_left_kp, reminder_right_kp)
 
@@ -169,7 +188,7 @@ class TracksDB:
         :return: New track ID.
         """
         self.track_id += 1
-        return self.track_id - 1
+        return self.track_id
 
     # Implement functions to serialize the database to a file and read it from a file.
     def serialize(self, file_name):
@@ -427,7 +446,7 @@ def run_sequence(start_frame, end_frame):
             left0_kp, right0_kp, left1_kp, right1_kp = inliers
             db.extend_tracks(idx, (left0_kp, right0_kp), (left1_kp, right1_kp))
         print(" -- Step {} -- ".format(idx))
-
+    db.remove_short_tracks(short=2)
     db.serialize('tracks_db.pkl')
     return db
 
@@ -438,14 +457,15 @@ def run_ex4():
     Runs all exercise 4 sections.
     """
     tracks_db = None
-    # tracks_db = run_sequence(START_FRAME, END_FRAME)  # Build the tracks database
+    tracks_db = run_sequence(START_FRAME, END_FRAME)  # Build the tracks database
 
     # q4.2
     # tracks_db.get_statistics()
     if tracks_db is None:
         tracks_db = TracksDB.deserialize('tracks_db.pkl')
+
     # q4.3
-    track = get_rand_track(10, tracks_db)
+    # track = get_rand_track(10, tracks_db)
     # plot_track(track)
 
     #
@@ -453,8 +473,9 @@ def run_ex4():
     plot_connectivity_graph(tracks_db)
     #
     #
-    # q4.5    #   #  #  # plot_inliers_per_frame(
-    # tracks_db)    #
+    # q4.5
+    # plot_inliers_per_frame(tracks_db)
+
     # q4.6
     plot_track_length_histogram(tracks_db)
 
