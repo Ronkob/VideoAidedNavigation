@@ -358,6 +358,7 @@ def plot_connectivity_graph(tracks_db):
     plt.title('Connectivity Graph')
     plt.xlabel('Frame')
     plt.ylabel('Outgoing tracks')
+    plt.axhline(y=np.array(outgoing_tracks).mean(), color='green', linestyle='--')
     plt.plot(frames, outgoing_tracks)
     plt.show()
 
