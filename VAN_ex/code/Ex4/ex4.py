@@ -233,6 +233,7 @@ class TracksDB:
 
 
 # create a gif of some frames of the video
+@utils.measure_time
 def create_gif(start_frame, end_frame, tracks_db):
     # add the frames to a list
     images = []
@@ -275,6 +276,33 @@ def get_rand_track(track_len, tracks):
         track_id = np.random.choice(tracks.track_ids)
         track = tracks.tracks[track_id]
     return track
+
+
+# Display the feature locations on all the relevant images.
+# Cut a region of 100x100 pixels (subject to image boundaries) around the feature from both left and right images and
+# mark the feature as a dot. Present this for all images in the track.
+def plot_track(track):
+    """
+    Plot a track.
+    """
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+    ax1.set_title('Left image')
+    ax2.set_title('Right image')
+    ims = []
+    for frame_id in track.frame_ids:
+        left0_image, right0_image = ex1_utils.read_images(frame_id)
+        x_cor = int(np.floor(track.kp[frame_id][0][0]))
+        y_cor = int(np.floor(track.kp[frame_id][0][1]))
+        left0_image = left0_image[y_cor - 50:y_cor + 50,
+                      x_cor - 50:x_cor + 50]
+        x_cor = int(np.floor(track.kp[frame_id][1][0]))
+        y_cor = int(np.floor(track.kp[frame_id][1][1]))
+        right0_image = right0_image[y_cor - 50:y_cor + 50,
+                      x_cor - 50:x_cor + 50]
+
+        ims.append([ax1.imshow(left0_image, cmap='gray'), ax2.imshow(right0_image, cmap='gray')])
+    ani = animation.ArtistAnimation(fig, ims, interval=100)
+    ani.save("track_cut_around.gif", writer="pillow", fps=5)
 
 
 def plot_connectivity_graph(tracks_db):
@@ -407,7 +435,7 @@ def run_sequence(start_frame, end_frame):
             db.extend_tracks(idx, (left0_kp, right0_kp), (left1_kp, right1_kp))
         print(" -- Step {} -- ".format(idx))
 
-    # db.serialize('tracks_db.pkl')
+    db.serialize('tracks_db.pkl')
     return db
 
 
@@ -416,16 +444,22 @@ def run_ex4():
     """
     Runs all exercise 4 sections.
     """
-    tracks_db = run_sequence(START_FRAME, END_FRAME)  # Build the tracks database
+    tracks_db = None
+    # tracks_db = run_sequence(START_FRAME, END_FRAME)  # Build the tracks database
 
     # q4.2
     # tracks_db.get_statistics()
-
+    if tracks_db is None:
+        tracks_db = TracksDB.deserialize('tracks_db.pkl')
     # q4.3
-    create_gif(START_FRAME, END_FRAME, tracks_db)
+    track = get_rand_track(10, tracks_db)
+    plot_track(track)
 
-    # # q4.4    # plot_connectivity_graph(tracks_db)    #    #   # q4.5    # plot_inliers_per_frame(tracks_db)    #
-    # q4.6     # plot_track_length_histogram(tracks_db)    #    # q4.7  # plot_reprojection_error(tracks_db)
+    # # q4.4    # plot_connectivity_graph(tracks_db)    #    #   # q4.5    #   #  #
+    # plot_inliers_per_frame(tracks_db)    #  # q4.6     # plot_track_length_histogram(tracks_db)    #    # q4.7  #
+    # plot_reprojection_error(tracks_db)
+
+    # create_gif(START_FRAME, END_FRAME, tracks_db)
 
 
 def main():
