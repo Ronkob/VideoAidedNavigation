@@ -402,45 +402,54 @@ def plot_reprojection_error(tracks_db):
     Present a graph of the reprojection error over the track’s images
     """
     # Read the ground truth camera matrices (in \poses\05.txt)
-    gt_cam_matrices = read_gt_cam_mat()
+    gt_cam_matrices = ex3_utils.get_ground_truth_transformations()
 
     # Triangulate a 3d point in world coordinates from the features in the last frame of the track
+    np.random.seed(11)
     track = get_rand_track(TRACK_MIN_LEN, tracks_db)
 
-    left_locations = track.get_left_kp()  # Need to implement
+    left_locations = track.get_left_kp()
     right_locations = track.get_right_kp()
 
-    last_gt_mat = gt_cam_matrices[END_FRAME]
+    last_gt_mat = gt_cam_matrices[max(track.frame_ids)]
     last_left_proj_mat = k @ last_gt_mat
     last_right_proj_mat = k @ ex3_utils.composite_transformations(last_gt_mat, m2)
 
     last_left_img_coords = left_locations[track.frame_ids[-1]]
     last_right_img_coords = right_locations[track.frame_ids[-1]]
-    p3d = utils.triangulate_points(last_left_proj_mat, last_right_proj_mat, last_left_img_coords, last_right_img_coords)
+    p3d = utils.triangulate_points(last_left_proj_mat, last_right_proj_mat, [last_left_img_coords], [last_right_img_coords])
 
     # Project this point to all the frames of the track (both left and right cameras)
     left_projections, right_projections = [], []
 
-    for gt_cam_mat in gt_cam_matrices[START_FRAME:END_FRAME]:
+    for gt_cam_mat in gt_cam_matrices[min(track.frame_ids):max(track.frame_ids)+1]:
         left_proj_cam = k @ gt_cam_mat
-        left_projections.append(utils.project(p3d, left_proj_cam))
+        left_projections.append(utils.project(p3d, left_proj_cam)[0])
 
         right_proj_cam = k @ ex3_utils.composite_transformations(gt_cam_mat, m2)
-        right_projections.append(utils.project(p3d, right_proj_cam))
+        right_projections.append(utils.project(p3d, right_proj_cam)[0])
 
     left_projections, right_projections = np.array(left_projections), np.array(right_projections)
 
     # We’ll define the reprojection error for a given camera as the distance between the projection
     # and the tracked feature location on that camera.
-    left_proj_dist = np.einsum("ij,ij->i", left_projections, left_locations)
-    right_proj_dist = np.einsum("ij,ij->i", right_projections, right_locations)
+
+    # Calculate the reprojection error for each frame of the track
+    left_locations = np.array(list(left_locations.values()))
+    right_locations = np.array(list(right_locations.values()))
+
+    left_proj_dist = np.linalg.norm(left_projections - left_locations, axis=1)
+    right_proj_dist = np.linalg.norm(right_projections - right_locations, axis=1)
+
+    # left_proj_dist = np.einsum("ij,ij->i", left_projections, left_locations)
+    # right_proj_dist = np.einsum("ij,ij->i", right_projections, right_locations)
     total_proj_dist = (left_proj_dist + right_proj_dist) / 2
 
     # Present a graph of the reprojection error over the track’s images.
     plt.title("Reprojection error over track's images")
     plt.ylabel('Error')
     plt.xlabel('Frames')
-    plt.scatter(range(len(total_proj_dist)), total_proj_dist)
+    plt.scatter(range(min(track.frame_ids),max(track.frame_ids)+1), total_proj_dist)
     plt.show()
 
 
