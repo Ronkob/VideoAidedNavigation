@@ -69,6 +69,13 @@ class Track:
         self.kp[frame_id] = next_kp
         self.frame_ids.append(frame_id)
 
+    # get all the left kp of the track
+    def get_left_kp(self):
+        return {kp: self.kp[kp][0] for kp in self.kp}
+
+    # get all the right kp of the track as a dictionary
+    def get_right_kp(self):
+        return {kp:self.kp[kp][1] for kp in self.kp}
 
 # Section 4.1
 class TracksDB:
@@ -122,6 +129,7 @@ class TracksDB:
     def remove_track(self, track_id):
         self.tracks.pop(track_id)
         self.track_ids.remove(track_id)
+
 
     # Implement an ability to extend the database with new tracks on a new
     # frame as we match new stereo pairs to the previous ones.
@@ -338,7 +346,6 @@ def plot_connectivity_graph(tracks_db):
     plt.xlabel('Frame')
     plt.ylabel('Outgoing tracks')
     plt.plot(frames, outgoing_tracks)
-    plt.axhline(y=np.mean(outgoing_tracks), color='green')
     plt.show()
 
 
@@ -346,14 +353,14 @@ def plot_inliers_per_frame(tracks_db):
     """
     Present a graph of the percentage of inliers per frame.
     """
-    # Need to fix
-    inliers_per_frame = [len(tracks_db.get_track_ids(frame)) for frame in tracks_db.frame_ids]
+    # TODO: this is the number of tracked features per frame, not the number of inliers
+
+    inliers_per_frame = [len(tracks_db.get_track_ids(idx)) for idx in tracks_db.frame_ids]
 
     plt.title('Inliers per frame')
     plt.xlabel('Frame')
     plt.ylabel('Inliers')
-    plt.scatter(tracks_db.frame_ids, inliers_per_frame)
-    plt.axhline(y=np.mean(inliers_per_frame), color='green')
+    plt.plot(list(tracks_db.frame_ids), inliers_per_frame)
     plt.show()
 
 
@@ -398,10 +405,10 @@ def plot_reprojection_error(tracks_db):
     gt_cam_matrices = read_gt_cam_mat()
 
     # Triangulate a 3d point in world coordinates from the features in the last frame of the track
-    track = get_rand_track(TRACK_MIN_LEN, tracks_db.get_tracks())
+    track = get_rand_track(TRACK_MIN_LEN, tracks_db)
 
-    left_locations = track.left_locations()  # Need to implement
-    right_locations = track.right_locations()
+    left_locations = track.get_left_kp()  # Need to implement
+    right_locations = track.get_right_kp()
 
     last_gt_mat = gt_cam_matrices[END_FRAME]
     last_left_proj_mat = k @ last_gt_mat
@@ -457,7 +464,7 @@ def run_ex4():
     Runs all exercise 4 sections.
     """
     tracks_db = None
-    tracks_db = run_sequence(START_FRAME, END_FRAME)  # Build the tracks database
+    # tracks_db = run_sequence(START_FRAME, END_FRAME)  # Build the tracks database
 
     # q4.2
     # tracks_db.get_statistics()
@@ -465,22 +472,22 @@ def run_ex4():
         tracks_db = TracksDB.deserialize('tracks_db.pkl')
 
     # q4.3
-    # track = get_rand_track(10, tracks_db)
+    track = get_rand_track(10, tracks_db)
     # plot_track(track)
 
     #
     # q4.4
-    plot_connectivity_graph(tracks_db)
-    #
+    # plot_connectivity_graph(tracks_db)
+
     #
     # q4.5
     # plot_inliers_per_frame(tracks_db)
 
     # q4.6
-    plot_track_length_histogram(tracks_db)
+    # plot_track_length_histogram(tracks_db)
 
     # q4.7
-    # plot_reprojection_error(tracks_db)
+    plot_reprojection_error(tracks_db)
 
     # create_gif(START_FRAME, END_FRAME, tracks_db)
 
