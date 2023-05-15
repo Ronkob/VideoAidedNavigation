@@ -19,8 +19,8 @@ def read_images(idx):
     # print(os.path.join(os.path.dirname(__file__), DATA_PATH)+'\\image_1\\'+img_name)
     # print(os.path.exists(os.path.join(os.path.dirname(__file__), DATA_PATH)))
 
-    left_image = cv2.imread(DATA_PATH+'\\image_0\\'+img_name, cv2.IMREAD_GRAYSCALE)
-    right_image = cv2.imread(DATA_PATH+'\\image_1\\'+img_name, cv2.IMREAD_GRAYSCALE)
+    left_image = cv2.imread(os.path.join(DATA_PATH,'image_0',img_name), cv2.IMREAD_GRAYSCALE)
+    right_image = cv2.imread(os.path.join(DATA_PATH,'image_1',img_name), cv2.IMREAD_GRAYSCALE)
 
     if left_image is None or right_image is None:
         raise RuntimeWarning("not a valid path, images are null")

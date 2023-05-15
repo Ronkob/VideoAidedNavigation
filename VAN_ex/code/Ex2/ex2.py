@@ -97,7 +97,7 @@ def read_cameras():
     """
     Read the relative camera matrices of the stereo cameras from ‘calib.txt’.
     """
-    with open(DATA_PATH + '\calib.txt') as f:
+    with open(os.path.join(DATA_PATH, 'calib.txt')) as f:
         l1 = f.readline().split()[1:]  # skip first token
         l2 = f.readline().split()[1:]  # skip first token
     l1 = [float(i) for i in l1]

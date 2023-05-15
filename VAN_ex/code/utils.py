@@ -16,13 +16,15 @@ ALGORITHM = cv2.AKAZE_create()
 def measure_time(func):
     def wrapper(*args, **kwargs):
         start_time = time.time()
-        func(*args, **kwargs)
+        ret = func(*args, **kwargs)
         end_time = time.time()
         # prints the time in minutes and seconds and to the 3rd digit after the dot
         print("Execution time: ", round((end_time - start_time) / 60, 0), " minutes and ",
               round((end_time - start_time) % 60, 3), " seconds")
 
-    return wrapper
+        return ret
+
+    return wrapper # returns the decorated function
 
 
 def read_images(idx):

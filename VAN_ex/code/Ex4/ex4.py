@@ -13,8 +13,6 @@ import matplotlib.pyplot as plt
 import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex2.ex2 as ex2_utils
 import VAN_ex.code.Ex3.ex3 as ex3_utils
-import VAN_ex.code.utils as utils
-
 
 # Constants #
 MOVIE_LENGTH = 2559
@@ -22,9 +20,9 @@ CAM_TRAJ_PATH = os.path.join('..', '..', 'dataset', 'poses', '05.txt')
 N_FEATURES = 1000
 PNP_POINTS = 4
 CONSENSUS_ACCURACY = 2
-MAX_RANSAC_ITERATIONS = 5000
+MAX_RANSAC_ITERATIONS = 1000
 START_FRAME = 0
-END_FRAME = 50
+END_FRAME = 20
 TRACK_MIN_LEN = 10
 k, m1, m2 = ex2_utils.read_cameras()
 
@@ -46,7 +44,7 @@ class Track:
         """
         self.track_id = track_id
         self.frame_ids = frame_ids
-        self.kp = kp  # Dict of tuples of key-points, each tuple is a pair of key-points
+        self.kp = kp  # one tuple of key points for each frame
 
     def __str__(self):
         return f"Track ID: {self.track_id}, Frame IDs: {self.frame_ids}, " \
@@ -61,17 +59,14 @@ class Track:
     def get_frame_ids(self):
         return self.frame_ids
 
-    def add_frame(self, frame_id, curr_kp, next_kp):
+    def add_frame(self, frame_id, next_kp):
         """
         Add a frame to the track.
         :param frame_id: Frame ID.
         :param curr_kp: Key-points of the current frame.
         :param next_kp: Key-points of the next frame.
         """
-        kp_to_keep = [kp for kp in self.kp[self.frame_ids[-1]][0] if kp in curr_kp[0]]
-        # idx of kp in curr_kp that are in kp_to_keep
-        idx_to_keep = [np.where(curr_kp[0] == kp)[0][0] for kp in kp_to_keep]
-        self.kp[frame_id] = next_kp[0][idx_to_keep], next_kp[1][idx_to_keep]
+        self.kp[frame_id] = next_kp
         self.frame_ids.append(frame_id)
 
 
@@ -123,25 +118,6 @@ class TracksDB:
         """
         return self.tracks[track_id].frame_ids
 
-    def get_feature_locations(self, frame_id, track_id):
-        """
-        Given track_id and frame_id, get feature locations of track on both
-         left and right images, as a triplet (xl, xr, y) with:
-         - (xl, y) the feature location on the left image
-         - (xr, y) the feature location on the right image.
-            Note that the y index is shared on both images.
-        :param frame_id: Frame ID.
-        :param track_id: Track ID.
-        :return: Feature locations of track TrackId on both left and right images.
-        """
-        track = self.tracks[track_id]
-        frame_ids = track.frame_ids
-        if frame_id not in frame_ids:
-            return None
-        frame_index = frame_ids.index(frame_id)  # Get the index of the frame id in the track
-        kp = track.kp[frame_index]
-        return kp.pt
-
     # Implement an ability to extend the database with new tracks on a new
     # frame as we match new stereo pairs to the previous ones.
     def extend_tracks(self, frame_id, curr_frame_supporters_kp, next_frame_supporters_kp):
@@ -152,26 +128,40 @@ class TracksDB:
         # treats the kps as unique objects
         # get the tracks that include the previous frame_id
         relevant_tracks = [track_id for track_id in self.track_ids if frame_id - 1 in self.tracks[track_id].frame_ids]
-        # get the tracks that include the curr_frame_supporters_kp in the previous frame
-        relevant_tracks = [track_id for track_id in relevant_tracks if any(
-            kp in self.tracks[track_id].kp[frame_id - 1][0] for kp in curr_frame_supporters_kp[0]) and any(
-            kp in self.tracks[track_id].kp[frame_id - 1][1] for kp in curr_frame_supporters_kp[1])]
 
-        # add a new frame to every fitting track with the new frame supporters_kp
-        for track_id in relevant_tracks:
-            track = self.tracks[track_id]
-            track.add_frame(frame_id, curr_frame_supporters_kp, next_frame_supporters_kp)
+        taken_kp_idxs = []
 
-        # get the set of kp in the relevant tracks
-        relevant_kp = {}
-        for track_id in relevant_tracks:
-            relevant_kp.update(self.tracks[track_id].kp)
+        left_kp, right_kp = curr_frame_supporters_kp
+        for i in range(len(left_kp)):
+            for track_id in relevant_tracks:
+                track = self.tracks[track_id]
+                if left_kp[i] in track.kp[frame_id - 1][0] and right_kp[i] in track.kp[frame_id - 1][1]:
+                    track.add_frame(frame_id, (next_frame_supporters_kp[0][i], next_frame_supporters_kp[1][i]))
+                    taken_kp_idxs.append(i)
+                    break  # advance to the next kp
 
-        # get the matches that are not in the relevant tracks
-        new_matches = (left_kp, right_kp) = next_frame_supporters_kp
+        reminder_left_kp, reminder_right_kp = self.get_reminder_kp(taken_kp_idxs, next_frame_supporters_kp)
+        self.create_new_tracks(frame_id, reminder_left_kp, reminder_right_kp)
 
+    def get_reminder_kp(self, taken_kp_idxs, next_frame_supporters_kp):
+        # create an array of free indexs of the kps that were not taken, efficiant for large arrays
+        # start with all the indexes as a boolean array
+        reminder_kp_idxs = np.ones(len(next_frame_supporters_kp[0]), dtype=bool)
+        # set the taken indexes to false
+        reminder_kp_idxs[taken_kp_idxs] = False
+        reminder_kp_idxs = np.where(reminder_kp_idxs)[0]
+        # create new tracks for the kps that were not taken
+        return next_frame_supporters_kp[0][reminder_kp_idxs], next_frame_supporters_kp[1][reminder_kp_idxs]
+
+    # a function that creates new tracks, one for each kp in the new frame
+    def create_new_tracks(self, frame_id, left_kp, right_kp):
+        """
+        Get the matches of a new frame, and add the matches that consistent
+         with the previous frames in the tracks as a new frame in every track.
+        """
         # add the new track to the tracks db
-        self.add_new_track(Track(self.get_new_id(), [frame_id], {frame_id: new_matches}))
+        for i in range(len(left_kp)):
+            self.add_new_track(Track(self.get_new_id(), [frame_id], {frame_id: (left_kp[i], right_kp[i])}))
 
     # Implement an ability to add a new track to the database.
     def add_new_track(self, track):
@@ -242,7 +232,6 @@ class TracksDB:
         print('Mean number of frame links: {}'.format(mean_num_frame_links))
 
 
-@utils.measure_time
 # create a gif of some frames of the video
 def create_gif(start_frame, end_frame, tracks_db):
     # add the frames to a list
@@ -258,22 +247,22 @@ def create_gif(start_frame, end_frame, tracks_db):
     ims = [[axes.imshow(i, animated=True, cmap='gray')] for i in images]
     # add a scatter plot of the tracks
     # create a dictionary of colors from mpl colormap
-    cmap = plt.get_cmap('gist_rainbow')
-    colors = [cmap(i) for i in np.linspace(0, 1, len(tracks_db.track_ids))]
+    cmap = plt.get_cmap('tab20')
     # reverse order of tracks_db.track_ids
     reversed_idx = tracks_db.track_ids[::-1]
     # only tracks that have at least 10 frames
-    tracks_to_show = [track_id for track_id in reversed_idx if len(tracks_db.tracks[track_id].frame_ids) > 10]
-    for track_id in tracks_to_show:
+    tracks_to_show = [track_id for track_id in reversed_idx if
+                      len(tracks_db.tracks[track_id].frame_ids) > TRACK_MIN_LEN]
+    for i, track_id in enumerate(tracks_to_show):
         track = tracks_db.tracks[track_id]
-        for i, frame_id in enumerate(track.frame_ids):
+        color = cmap(i % 20)
+        for frame_id in track.frame_ids:
             ims[frame_id].append(
-                axes.scatter([kp[0] for kp in track.kp[frame_id][0]], [kp[1] for kp in track.kp[frame_id][0]],
-                             color=colors[track_id], animated=True))
+                axes.scatter(track.kp[frame_id][0][0], track.kp[frame_id][0][1], color=color, animated=True))
 
-    ani = animation.ArtistAnimation(fig, ims, interval=50, repeat_delay=3000, blit=True)
+    ani = animation.ArtistAnimation(fig, ims, interval=100, repeat_delay=3000, blit=True)
     # save but compress it first so it won't be too big
-    ani.save('run.gif', writer='pillow', fps=5, dpi=100)
+    ani.save('run.gif', writer='pillow', fps=5, dpi=80)
 
 
 def get_rand_track(track_len, tracks):
@@ -301,7 +290,6 @@ def plot_connectivity_graph(tracks_db):
         num_tracks = len(tracks_db.get_track_ids(frame))
         num_tracks_next = len(tracks_db.get_track_ids(frame + 1))
         outgoing_tracks.append(num_tracks_next - num_tracks)
-
 
     plt.title('Connectivity Graph')
     plt.xlabel('Frame')
@@ -381,8 +369,7 @@ def plot_reprojection_error(tracks_db):
 
     last_left_img_coords = left_locations[track.frame_ids[-1]]
     last_right_img_coords = right_locations[track.frame_ids[-1]]
-    p3d = utils.triangulate_points(last_left_proj_mat, last_right_proj_mat,
-                                   last_left_img_coords, last_right_img_coords)
+    p3d = utils.triangulate_points(last_left_proj_mat, last_right_proj_mat, last_left_img_coords, last_right_img_coords)
 
     # Project this point to all the frames of the track (both left and right cameras)
     left_projections, right_projections = [], []
@@ -410,6 +397,7 @@ def plot_reprojection_error(tracks_db):
     plt.show()
 
 
+@utils.measure_time
 def run_sequence(start_frame, end_frame):
     db = TracksDB()
     for idx in range(start_frame, end_frame):
@@ -417,13 +405,9 @@ def run_sequence(start_frame, end_frame):
         if left_ext_mat is not None:
             left0_kp, right0_kp, left1_kp, right1_kp = inliers
             db.extend_tracks(idx, (left0_kp, right0_kp), (left1_kp, right1_kp))
-            # Test functions
-            # if idx == 5:
-            #     db.get_feature_locations(0, 0)
-
         print(" -- Step {} -- ".format(idx))
 
-    db.serialize('tracks_db.pkl')
+    # db.serialize('tracks_db.pkl')
     return db
 
 
@@ -435,22 +419,13 @@ def run_ex4():
     tracks_db = run_sequence(START_FRAME, END_FRAME)  # Build the tracks database
 
     # q4.2
-    tracks_db.get_statistics()
+    # tracks_db.get_statistics()
 
     # q4.3
     create_gif(START_FRAME, END_FRAME, tracks_db)
 
-    # # q4.4
-    # plot_connectivity_graph(tracks_db)
-    #
-    # # q4.5
-    # plot_inliers_per_frame(tracks_db)
-    #
-    # # q4.6
-    # plot_track_length_histogram(tracks_db)
-    #
-    # # q4.7
-    # plot_reprojection_error(tracks_db)
+    # # q4.4    # plot_connectivity_graph(tracks_db)    #    #   # q4.5    # plot_inliers_per_frame(tracks_db)    #
+    # q4.6     # plot_track_length_histogram(tracks_db)    #    # q4.7  # plot_reprojection_error(tracks_db)
 
 
 def main():

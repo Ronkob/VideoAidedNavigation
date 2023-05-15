@@ -14,7 +14,7 @@ CAM_TRAJ_PATH = os.path.join('..', '..', 'dataset', 'poses', '05.txt')
 N_FEATURES = 1000
 PNP_POINTS = 4
 CONSENSUS_ACCURACY = 2
-MAX_RANSAC_ITERATIONS = 5000
+MAX_RANSAC_ITERATIONS = 1000
 k, m1, m2 = ex2_utils.read_cameras()
 
 
