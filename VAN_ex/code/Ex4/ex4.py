@@ -6,12 +6,15 @@ import cv2
 import imageio
 import numpy as np
 from matplotlib import animation
+from collections import defaultdict
 
 import VAN_ex.code.utils as utils
 import matplotlib.pyplot as plt
 import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex2.ex2 as ex2_utils
 import VAN_ex.code.Ex3.ex3 as ex3_utils
+import VAN_ex.code.utils as utils
+
 
 # Constants #
 MOVIE_LENGTH = 2559
@@ -20,6 +23,9 @@ N_FEATURES = 1000
 PNP_POINTS = 4
 CONSENSUS_ACCURACY = 2
 MAX_RANSAC_ITERATIONS = 5000
+START_FRAME = 0
+END_FRAME = 50
+TRACK_MIN_LEN = 10
 k, m1, m2 = ex2_utils.read_cameras()
 
 
@@ -270,31 +276,138 @@ def create_gif(start_frame, end_frame, tracks_db):
     ani.save('run.gif', writer='pillow', fps=5, dpi=100)
 
 
+def get_rand_track(track_len, tracks):
+    """
+    Get a randomized track with length of at least track_len.
+    """
+    track_id = np.random.choice(tracks.track_ids)
+    track = tracks.tracks[track_id]
+    while len(track.frame_ids) < track_len:
+        track_id = np.random.choice(tracks.track_ids)
+        track = tracks.tracks[track_id]
+    return track
+
+
 def plot_connectivity_graph(tracks_db):
-    pass
+    """
+    Plot a connectivity graph of the tracks. For each frame, the number of
+    tracks outgoing to the next frame (the number of tracks on the frame with
+     links also in the next frame)
+    """
+    outgoing_tracks = []
+
+    # Need to fix
+    for frame in tracks_db.frame_ids:
+        num_tracks = len(tracks_db.get_track_ids(frame))
+        num_tracks_next = len(tracks_db.get_track_ids(frame + 1))
+        outgoing_tracks.append(num_tracks_next - num_tracks)
+
+
+    plt.title('Connectivity Graph')
+    plt.xlabel('Frame')
+    plt.ylabel('Outgoing tracks')
+    plt.scatter(tracks_db.frame_ids, outgoing_tracks)
+    plt.axhline(y=np.mean(outgoing_tracks), color='green')
+    plt.show()
 
 
 def plot_inliers_per_frame(tracks_db):
-    pass
+    """
+    Present a graph of the percentage of inliers per frame.
+    """
+    # Need to fix
+    inliers_per_frame = [len(tracks_db.get_track_ids(frame)) for frame in tracks_db.frame_ids]
+
+    plt.title('Inliers per frame')
+    plt.xlabel('Frame')
+    plt.ylabel('Inliers')
+    plt.scatter(tracks_db.frame_ids, inliers_per_frame)
+    plt.axhline(y=np.mean(inliers_per_frame), color='green')
+    plt.show()
 
 
 def plot_track_length_histogram(tracks_db):
-    pass
+    """
+    Present a track length histogram graph.
+    """
+    lengths_dict = defaultdict(int)
+
+    for track_id in tracks_db.track_ids:
+        lengths_dict[len(tracks_db.tracks[track_id].frame_ids)] += 1
+
+    max_value = max(lengths_dict.values())
+    track_number = [i for i in range(max_value)]
+    track_lengths = [lengths_dict[i] for i in track_number]
+
+    plt.title('Track length histogram')
+    plt.xlabel('Track length')
+    plt.ylabel('Track #')
+    plt.scatter(track_lengths, track_number)
+    plt.show()
+
+
+def read_gt_cam_mat():
+    """
+    Read the ground truth camera matrices (in \poses\05.txt).
+    """
+    gt_cam_matrices = list()
+
+    with open(CAM_TRAJ_PATH) as f:
+        lines = f.readlines()
+
+    for line in lines:
+        line = line.strip().split(' ')
+        gt_cam_matrices.append(np.array(line).reshape(3, 4).astype(np.float64))
+
+    return gt_cam_matrices
 
 
 def plot_reprojection_error(tracks_db):
-    # Read the ground truth camera matrices (in \poses\00.txt)
+    """
+    Present a graph of the reprojection error over the track’s images
+    """
+    # Read the ground truth camera matrices (in \poses\05.txt)
+    gt_cam_matrices = read_gt_cam_mat()
 
     # Triangulate a 3d point in world coordinates from the features in the last frame of the track
+    track = get_rand_track(TRACK_MIN_LEN, tracks_db.get_tracks())
+
+    left_locations = track.left_locations()  # Need to implement
+    right_locations = track.right_locations()
+
+    last_gt_mat = gt_cam_matrices[END_FRAME]
+    last_left_proj_mat = k @ last_gt_mat
+    last_right_proj_mat = k @ ex3_utils.composite_transformations(last_gt_mat, m2)
+
+    last_left_img_coords = left_locations[track.frame_ids[-1]]
+    last_right_img_coords = right_locations[track.frame_ids[-1]]
+    p3d = utils.triangulate_points(last_left_proj_mat, last_right_proj_mat,
+                                   last_left_img_coords, last_right_img_coords)
 
     # Project this point to all the frames of the track (both left and right cameras)
+    left_projections, right_projections = [], []
+
+    for gt_cam_mat in gt_cam_matrices[START_FRAME:END_FRAME]:
+        left_proj_cam = k @ gt_cam_mat
+        left_projections.append(utils.project(p3d, left_proj_cam))
+
+        right_proj_cam = k @ ex3_utils.composite_transformations(gt_cam_mat, m2)
+        right_projections.append(utils.project(p3d, right_proj_cam))
+
+    left_projections, right_projections = np.array(left_projections), np.array(right_projections)
 
     # We’ll define the reprojection error for a given camera as the distance between the projection
     # and the tracked feature location on that camera.
+    left_proj_dist = np.einsum("ij,ij->i", left_projections, left_locations)
+    right_proj_dist = np.einsum("ij,ij->i", right_projections, right_locations)
+    total_proj_dist = (left_proj_dist + right_proj_dist) / 2
 
     # Present a graph of the reprojection error over the track’s images.
-
-    pass
+    plt.title("Reprojection error over track's images")
+    plt.ylabel('Error')
+    plt.xlabel('Frames')
+    plt.scatter(range(len(total_proj_dist)), total_proj_dist)
+    plt.show()
 
 
 def run_sequence(start_frame, end_frame):
@@ -305,8 +418,8 @@ def run_sequence(start_frame, end_frame):
             left0_kp, right0_kp, left1_kp, right1_kp = inliers
             db.extend_tracks(idx, (left0_kp, right0_kp), (left1_kp, right1_kp))
             # Test functions
-            if idx == 5:
-                db.get_feature_locations(0, 0)
+            # if idx == 5:
+            #     db.get_feature_locations(0, 0)
 
         print(" -- Step {} -- ".format(idx))
 
@@ -319,25 +432,25 @@ def run_ex4():
     """
     Runs all exercise 4 sections.
     """
-    tracks_db = run_sequence(0, 50)  # Build the tracks database
+    tracks_db = run_sequence(START_FRAME, END_FRAME)  # Build the tracks database
 
     # q4.2
     tracks_db.get_statistics()
 
     # q4.3
-    create_gif(0, 50, tracks_db)
+    create_gif(START_FRAME, END_FRAME, tracks_db)
 
-    # q4.4
-    plot_connectivity_graph(tracks_db)
-
-    # q4.5
-    plot_inliers_per_frame(tracks_db)
-
-    # q4.6
-    plot_track_length_histogram(tracks_db)
-
-    # q4.7
-    plot_reprojection_error(tracks_db)
+    # # q4.4
+    # plot_connectivity_graph(tracks_db)
+    #
+    # # q4.5
+    # plot_inliers_per_frame(tracks_db)
+    #
+    # # q4.6
+    # plot_track_length_histogram(tracks_db)
+    #
+    # # q4.7
+    # plot_reprojection_error(tracks_db)
 
 
 def main():

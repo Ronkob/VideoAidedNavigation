@@ -266,3 +266,12 @@ def display_2_point_clouds(first_cloud, second_claud, txt, elev=60, azim=10):
     axes.view_init(elev=elev, azim=azim, vertical_axis='y')
 
     plt.show()
+
+
+def project(p3d_pts, camera_mat):
+    """
+    Projects the given p3d points using the camera matrix.
+    """
+    R, t = camera_mat[:, :3], camera_mat[:, 3]
+    proj = p3d_pts @ R.T + t.T
+    return proj[:, :2] / proj[:, [2]]
