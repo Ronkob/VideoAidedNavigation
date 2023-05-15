@@ -22,7 +22,7 @@ PNP_POINTS = 4
 CONSENSUS_ACCURACY = 2
 MAX_RANSAC_ITERATIONS = 1000
 START_FRAME = 0
-END_FRAME = 20
+END_FRAME = 200
 TRACK_MIN_LEN = 10
 k, m1, m2 = ex2_utils.read_cameras()
 
@@ -81,7 +81,7 @@ class TracksDB:
         Initialize a tracks database.
         """
         self.tracks = {}  # Dictionary of all tracks
-        self.frame_ids = []
+        self.frame_ids = set()
         self.track_ids = []
         self.track_id = 0  # Track ID counter
 
@@ -91,16 +91,6 @@ class TracksDB:
 
     def __repr__(self):
         return str(self)
-
-    def add_track(self, track):
-        """
-        Add a track to the database.
-        :param track: Track to add.
-        """
-        self.tracks[self.track_id] = track  # Add track to tracks dictionary by track_id as key
-        self.frame_ids += track.frame_ids
-        self.track_ids.append(self.track_id)
-        self.track_id += 1
 
     def get_track_ids(self, frame_id):
         """
@@ -170,7 +160,7 @@ class TracksDB:
         :param track: Track to add.
         """
         self.tracks[track.track_id] = track
-        self.frame_ids += track.frame_ids
+        self.frame_ids = self.frame_ids.union(track.frame_ids)
         self.track_ids.append(track.track_id)
 
     def get_new_id(self):
@@ -293,18 +283,22 @@ def plot_track(track):
         left0_image, right0_image = ex1_utils.read_images(frame_id)
         x_cor = int(np.floor(track.kp[frame_id][0][0]))
         y_cor = int(np.floor(track.kp[frame_id][0][1]))
-        left0_image = left0_image[y_cor - 50:y_cor + 50,
-                      x_cor - 50:x_cor + 50]
+        left0_image = left0_image[y_cor - 50:y_cor + 50, x_cor - 50:x_cor + 50]
         x_cor = int(np.floor(track.kp[frame_id][1][0]))
         y_cor = int(np.floor(track.kp[frame_id][1][1]))
-        right0_image = right0_image[y_cor - 50:y_cor + 50,
-                      x_cor - 50:x_cor + 50]
+        right0_image = right0_image[y_cor - 50:y_cor + 50, x_cor - 50:x_cor + 50]
 
         ims.append([ax1.imshow(left0_image, cmap='gray'), ax2.imshow(right0_image, cmap='gray')])
     ani = animation.ArtistAnimation(fig, ims, interval=100)
     ani.save("track_cut_around.gif", writer="pillow", fps=5)
 
+    plt.close()
+    plt.clf()
 
+
+
+# Present a connectivity graph: For each frame, the number of tracks outgoing to the next frame (the number of tracks
+# on the frame with links also in the next frame)
 def plot_connectivity_graph(tracks_db):
     """
     Plot a connectivity graph of the tracks. For each frame, the number of
@@ -312,17 +306,19 @@ def plot_connectivity_graph(tracks_db):
      links also in the next frame)
     """
     outgoing_tracks = []
+    frames = list(tracks_db.frame_ids)[:-1] # exclude the last frame
 
-    # Need to fix
-    for frame in tracks_db.frame_ids:
-        num_tracks = len(tracks_db.get_track_ids(frame))
-        num_tracks_next = len(tracks_db.get_track_ids(frame + 1))
-        outgoing_tracks.append(num_tracks_next - num_tracks)
+    for frame in frames:
+        curr_tracks = tracks_db.get_track_ids(frame)
+        next_tracks = tracks_db.get_track_ids(frame + 1)
+        # count the shared tracks between the two frames
+        num_tracks = len(set(curr_tracks).intersection(next_tracks))
+        outgoing_tracks.append(num_tracks)
 
     plt.title('Connectivity Graph')
     plt.xlabel('Frame')
     plt.ylabel('Outgoing tracks')
-    plt.scatter(tracks_db.frame_ids, outgoing_tracks)
+    plt.plot(frames, outgoing_tracks)
     plt.axhline(y=np.mean(outgoing_tracks), color='green')
     plt.show()
 
@@ -346,19 +342,16 @@ def plot_track_length_histogram(tracks_db):
     """
     Present a track length histogram graph.
     """
-    lengths_dict = defaultdict(int)
-
-    for track_id in tracks_db.track_ids:
-        lengths_dict[len(tracks_db.tracks[track_id].frame_ids)] += 1
-
-    max_value = max(lengths_dict.values())
-    track_number = [i for i in range(max_value)]
-    track_lengths = [lengths_dict[i] for i in track_number]
+    # make a histogram of the track lengths throughout the tracks in the db
+    # (x-axis: track length, y-axis: number of tracks with this length)
+    track_lengths = [len(tracks_db.tracks[track_id].frame_ids) for track_id in tracks_db.track_ids]
+    x_axis = [i for i in range(max(track_lengths))]
+    num_tracks = [track_lengths.count(i) for i in x_axis]
 
     plt.title('Track length histogram')
     plt.xlabel('Track length')
     plt.ylabel('Track #')
-    plt.scatter(track_lengths, track_number)
+    plt.plot(x_axis, num_tracks)
     plt.show()
 
 
@@ -453,10 +446,19 @@ def run_ex4():
         tracks_db = TracksDB.deserialize('tracks_db.pkl')
     # q4.3
     track = get_rand_track(10, tracks_db)
-    plot_track(track)
+    # plot_track(track)
 
-    # # q4.4    # plot_connectivity_graph(tracks_db)    #    #   # q4.5    #   #  #
-    # plot_inliers_per_frame(tracks_db)    #  # q4.6     # plot_track_length_histogram(tracks_db)    #    # q4.7  #
+    #
+    # q4.4
+    plot_connectivity_graph(tracks_db)
+    #
+    #
+    # q4.5    #   #  #  # plot_inliers_per_frame(
+    # tracks_db)    #
+    # q4.6
+    plot_track_length_histogram(tracks_db)
+
+    # q4.7
     # plot_reprojection_error(tracks_db)
 
     # create_gif(START_FRAME, END_FRAME, tracks_db)
