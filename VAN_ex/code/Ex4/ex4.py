@@ -74,7 +74,7 @@ class Track:
         return {kp: self.kp[kp][1] for kp in self.kp}
 
 
-# Section 4.1
+# q4.1
 class TracksDB:
     """
     A class that represents a database for tracks.
@@ -154,26 +154,16 @@ class TracksDB:
                     taken_kp_idxs.append(i)
                     break  # advance to the next kp
 
-        # remove tracks that are too short (less than 2 frames)
+        # Remove tracks that are too short (less than 2 frames)
         self.remove_short_tracks(short=2)
 
-        # create new tracks for the kps that were not taken
+        # Create new tracks for the kps that were not taken
         reminder_left_kp, reminder_right_kp = self.get_reminder_kp(taken_kp_idxs, next_frame_supporters_kp)
         self.create_new_tracks(frame_id, reminder_left_kp, reminder_right_kp)
 
-    def get_reminder_kp(self, taken_kp_idxs, next_frame_supporters_kp):
-        # create an array of free indexs of the kps that were not taken, efficiant for large arrays
-        # start with all the indexes as a boolean array
-        reminder_kp_idxs = np.ones(len(next_frame_supporters_kp[0]), dtype=bool)
-        # set the taken indexes to false
-        reminder_kp_idxs[taken_kp_idxs] = False
-        reminder_kp_idxs = np.where(reminder_kp_idxs)[0]
-        # create new tracks for the kps that were not taken
-        return next_frame_supporters_kp[0][reminder_kp_idxs], next_frame_supporters_kp[1][reminder_kp_idxs]
-
-    # a function that creates new tracks, one for each kp in the new frame
     def create_new_tracks(self, frame_id, left_kp, right_kp):
         """
+        Creates new tracks, one for each kp in the new frame.
         Get the matches of a new frame, and add the matches that consistent
          with the previous frames in the tracks as a new frame in every track.
         """
@@ -199,6 +189,20 @@ class TracksDB:
         self.track_id += 1
         return self.track_id
 
+    def feature_location(self, frame_id, track_id):
+        """
+        Returns feature locations of track TrackId on both left and right
+         images as a triplet (xl, xr, y).
+        """
+        if self.tracks[track_id] and frame_id in self.tracks[track_id].frame_ids:
+            xl = self.tracks[track_id].kp[frame_id][0][0]
+            xr = self.tracks[track_id].kp[frame_id][1][0]
+            y = self.tracks[track_id].kp[frame_id][0][1]
+            return xl, xr, y
+        else:
+            return None
+
+
     # Implement functions to serialize the database to a file and read it from a file.
     def serialize(self, file_name):
         """
@@ -218,7 +222,7 @@ class TracksDB:
             tracks_db = pickle.load(file)
         return tracks_db
 
-    # Section 4.2
+    # q4.2
     def get_statistics(self):
         """
         Present a plot of the following tracking statistics:
@@ -248,6 +252,17 @@ class TracksDB:
         print('Maximum track length: {}'.format(max_track_length))
         print('Minimum track length: {}'.format(min_track_length))
         print('Mean number of frame links: {}'.format(mean_num_frame_links))
+
+    @staticmethod
+    def get_reminder_kp(taken_kp_idxs, next_frame_supporters_kp):
+        # create an array of free indexs of the kps that were not taken, efficiant for large arrays
+        # start with all the indexes as a boolean array
+        reminder_kp_idxs = np.ones(len(next_frame_supporters_kp[0]), dtype=bool)
+        # set the taken indexes to false
+        reminder_kp_idxs[taken_kp_idxs] = False
+        reminder_kp_idxs = np.where(reminder_kp_idxs)[0]
+        # create new tracks for the kps that were not taken
+        return next_frame_supporters_kp[0][reminder_kp_idxs], next_frame_supporters_kp[1][reminder_kp_idxs]
 
 
 @utils.measure_time
@@ -298,6 +313,7 @@ def get_rand_track(track_len, tracks):
     return track
 
 
+# q4.3
 def plot_random_track(tracks_db):
     """
     Randomize track, and display the feature locations on all the relevant
@@ -337,8 +353,7 @@ def plot_random_track(tracks_db):
     plt.clf()
 
 
-# Present a connectivity graph: For each frame, the number of tracks outgoing to the next frame (the number of tracks
-# on the frame with links also in the next frame)
+# q4.4
 def plot_connectivity_graph(tracks_db):
     """
     Plot a connectivity graph of the tracks. For each frame, the number of
@@ -363,21 +378,7 @@ def plot_connectivity_graph(tracks_db):
     plt.show()
 
 
-def plot_inliers_per_frame(tracks_db):
-    """
-    Present a graph of the percentage of inliers per frame.
-    """
-    # TODO: this is the number of tracked features per frame, not the number of inliers
-
-    inliers_per_frame = [len(tracks_db.get_track_ids(idx)) for idx in tracks_db.frame_ids]
-
-    plt.title('Inliers per frame')
-    plt.xlabel('Frame')
-    plt.ylabel('Inliers')
-    plt.plot(list(tracks_db.frame_ids), inliers_per_frame)
-    plt.show()
-
-
+# q4.6
 def plot_track_length_histogram(tracks_db):
     """
     Present a track length histogram graph, according to the tracks in the db.
@@ -409,6 +410,7 @@ def read_gt_cam_mat():
     return gt_cam_matrices
 
 
+# q4.7
 def plot_reprojection_error(tracks_db):
     """
     Present a graph of the reprojection error over the track’s images
@@ -462,17 +464,36 @@ def plot_reprojection_error(tracks_db):
     plt.show()
 
 
+# q4.5
+def plot_inliers_per_frame(inliers_precent, frames):
+    """
+    Present a graph of the percentage of inliers per frame.
+    """
+    plt.title('Inliers per frame')
+    plt.xlabel('Frame')
+    plt.ylabel('Inliers')
+    plt.plot(frames, inliers_precent)
+    plt.axhline(y=np.array(inliers_precent).mean(), color='green',
+                linestyle='--')
+    plt.show()
+
+
 @utils.measure_time
 def run_sequence(start_frame, end_frame):
     db = TracksDB()
+    # inliers_precent_lst = []
     for idx in range(start_frame, end_frame):
-        left_ext_mat, inliers = ex3_utils.track_movement_successive([idx, idx + 1])
+        left_ext_mat, inliers, inliers_precent =\
+            ex3_utils.track_movement_successive([idx, idx + 1])
         if left_ext_mat is not None:
             left0_kp, right0_kp, left1_kp, right1_kp = inliers
             db.extend_tracks(idx, (left0_kp, right0_kp), (left1_kp, right1_kp))
+            # inliers_precent_lst.append(inliers_precent)
         print(" -- Step {} -- ".format(idx))
+    # frames = [i for i in range(start_frame, end_frame)]
+    # plot_inliers_per_frame(inliers_precent_lst, frames)  # q4.5
     db.remove_short_tracks(short=2)
-    db.serialize(DB_PATH)
+    # db.serialize(DB_PATH)
     return db
 
 
@@ -482,7 +503,7 @@ def run_ex4():
     """
     np.random.seed(4)
     tracks_db = None
-    ### tracks_db = run_sequence(0, MOVIE_LENGTH)  # Build the tracks database
+    ## tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
     if tracks_db is None:
         tracks_db = TracksDB.deserialize(DB_PATH)
 
@@ -494,9 +515,6 @@ def run_ex4():
 
     # q4.4
     # plot_connectivity_graph(tracks_db)
-
-    # q4.5
-    plot_inliers_per_frame(tracks_db)
 
     # q4.6
     # plot_track_length_histogram(tracks_db)

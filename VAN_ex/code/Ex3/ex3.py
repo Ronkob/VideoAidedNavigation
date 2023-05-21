@@ -354,16 +354,14 @@ def track_movement_successive(idxs):
     best_ext_mat, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers)
     # plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx)
 
-    inliers = (left0_inliers[supporters_idx], right0_inliers[supporters_idx], left1_inliers[supporters_idx],
-               right1_inliers[supporters_idx])
-    return best_ext_mat, inliers
+    inliers = (left0_inliers[supporters_idx], right0_inliers[supporters_idx],
+               left1_inliers[supporters_idx], right1_inliers[supporters_idx])
+    return best_ext_mat, inliers, len(supporters_idx) / len(left0_inliers) * 100
 
 
 def one_run_over_ex3(idxs):
     """
-
-    :param idxs:
-    :return:
+    Run over all the steps in ex3.
     """
 
     # Section 3.1 - Create two point clouds - for pair0 and pair1
@@ -435,16 +433,15 @@ def track_movement_all_movie():
         # print status of loop execution every 5 iterations
         if idx % 5 == 0:
             print("iteration number: ", idx)
-        left_ext_mat, _ = track_movement_successive([idx, idx + 1])
+        left_ext_mat, _, _ = track_movement_successive([idx, idx + 1])
         T_arr.append(left_ext_mat)
 
-    # save the T_arr to numpy file
+    # Save the T_arr to numpy file
     T_arr = np.array(T_arr)
     np.save("T_arr.npy", T_arr)
 
     ground_truth_T_arr = get_ground_truth_transformations()
     ground_truth_pos = calculate_camera_trajectory(ground_truth_T_arr)
-    # start from 340
     T_arr[0] = ground_truth_T_arr[start_pos]
     cam_pos = calculate_camera_trajectory(calculate_relative_transformations(T_arr))
     plot_camera_trajectory(cam_pos, ground_truth_pos)
