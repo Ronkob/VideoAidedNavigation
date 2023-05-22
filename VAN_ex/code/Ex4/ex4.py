@@ -202,7 +202,6 @@ class TracksDB:
         else:
             return None
 
-
     # Implement functions to serialize the database to a file and read it from a file.
     def serialize(self, file_name):
         """
