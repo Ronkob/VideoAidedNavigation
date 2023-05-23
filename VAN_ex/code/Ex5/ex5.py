@@ -8,24 +8,19 @@ import VAN_ex.code.Ex3.ex3 as ex3_utils
 import VAN_ex.code.Ex4.ex4 as ex4_utils
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
+T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
+old_k, m1, m2 = ex4_utils.k, ex4_utils.m1, ex4_utils.m2
 
 
 def q5_1(track_db):
     track = ex4_utils.get_rand_track(10, track_db)
-    stereo_cameras = define_stereo_cameras(track)
-    triangulate_and_project(track, stereo_cameras)
+    triangulate_and_project(track)
 
 
-def define_stereo_cameras(track):
+def triangulate_and_project(track):
     """
     For all the frames participating in this track, define a gtsam.StereoCamera
     using the global camera matrices calculated in exercise 3 (PnP).
-    """
-    track_frames = track.kp
-
-
-def triangulate_and_project(track, stereo_camera):
-    """
     Using methods in StereoCamera, triangulate a 3d point in global coordinates
     from the last frame of the track, and project this point to all the frames
     of the track (both left and right cameras).
@@ -33,7 +28,21 @@ def triangulate_and_project(track, stereo_camera):
     • Create a factor for each frame projection and present a graph of the
       factor error over the track’s frames.
     """
-    pass
+    T_arr = np.load("T_arr.npy")
+    track_frames = track.kp
+    values = gtsam.Values()
+    last_frame_id = track.frames[-1]
+    last_frame_pt = track.kp[-1]
+    base_cam = T_arr[0]
+    fx, fy, skew = old_k[0, 0], old_k[1, 1], old_k[0, 1]
+    cx, cy, baseline = old_k[0, 2], old_k[1, 2], m2[0, 3]
+    K = gtsam.Cal3_S2Stereo(fx, fy, skew, cx, cy, -baseline)
+    for i, frame in enumerate(track_frames):
+        ext_mat = T_arr[i]
+        pose = ex3_utils.composite_transformations(base_cam, T_arr[i])
+        pose = gtsam.Pose3(pose)
+        symbol = gtsam.symbol('c', track.get_frame_ids()[i])
+        values.insert(symbol, pose)
 
 
 def plot_reprojection_error():
