@@ -1,15 +1,21 @@
 import os.path
 import time
+from typing import Iterable
 
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import gtsam.utils.plot as gtsam_plot
+import gtsam
+from mpl_toolkits.mplot3d import Axes3D
+import VAN_ex.code.Ex2.ex2 as ex2_utils
 
 DATA_PATH = os.path.join('..', 'dataset', 'sequences', '05')
 N_FEATURES = 500
 RATIO = 0.6
 DIFF = 2
 ALGORITHM = cv2.AKAZE_create()
+old_k, m1, m2 = ex2_utils.read_cameras()
 
 
 # a decorator to measure the time of a function
@@ -24,7 +30,7 @@ def measure_time(func):
 
         return ret
 
-    return wrapper # returns the decorated function
+    return wrapper  # returns the decorated function
 
 
 def read_images(idx):
@@ -60,6 +66,23 @@ def detect_and_extract(algorithm, left_image, right_image):
     # print(f"Detected {len(kp1)} keypoints in left image, and {len(kp2)} "
     #       f"keypoints in right image")
     return kp1, desc1, kp2, desc2
+
+
+def read_cameras():
+    """
+    Read the relative camera matrices of the stereo cameras from ‘calib.txt’.
+    """
+    with open(os.path.join(DATA_PATH, 'calib.txt')) as f:
+        l1 = f.readline().split()[1:]  # skip first token
+        l2 = f.readline().split()[1:]  # skip first token
+    l1 = [float(i) for i in l1]
+    m1 = np.array(l1).reshape(3, 4)
+    l2 = [float(i) for i in l2]
+    m2 = np.array(l2).reshape(3, 4)
+    k = m1[:, :3]
+    m1 = np.linalg.inv(k) @ m1
+    m2 = np.linalg.inv(k) @ m2
+    return k, m1, m2
 
 
 def significance_test(matches, ratio):
@@ -277,3 +300,146 @@ def project(p3d_pts, camera_mat):
     R, t = camera_mat[:, :3], camera_mat[:, 3]
     proj = p3d_pts @ R.T + t.T
     return proj[:, :2] / proj[:, [2]]
+
+
+def create_gtsam_K():
+    """
+    Compute the camera matrix K from the old camera matrix and the new baseline.
+    """
+    fx, fy, skew = old_k[0, 0], old_k[1, 1], old_k[0, 1]
+    cx, cy = old_k[0, 2], old_k[1, 2]
+    baseline = m2[0, 3]  # Just like t[0]
+    K = gtsam.Cal3_S2Stereo(fx, fy, skew, cx, cy, -baseline)
+    return K
+
+
+def fix_ext_mat(ext_mat):
+    ext_mat[:, -1] *= -1  # t
+    return ext_mat  # gtsam.Rot3(R), gtsam.Point3(t)
+
+
+def gtsam_plot_trajectory_fixed(fignum: int, values, scale: float = 1, marginals=None, title: str = "Plot Trajectory",
+                                axis_labels=("X axis", "Y axis", "Z axis"), ) -> None:
+    """
+    Plot a complete 2D/3D trajectory using poses in `values`.
+
+    Args:
+        fignum: Integer representing the figure number to use for plotting.
+        values: Values containing some Pose2 and/or Pose3 values.
+        scale: Value to scale the poses by.
+        marginals: Marginalized probability values of the estimation.
+            Used to plot uncertainty bounds.
+        title: The title of the plot.
+        axis_labels (iterable[string]): List of axis labels to set.
+    """
+    fig = plt.figure(fignum)
+    axes = fig.add_subplot(projection='3d')
+
+    axes.set_xlabel(axis_labels[0])
+    axes.set_ylabel(axis_labels[1])
+    axes.set_zlabel(axis_labels[2])
+
+    # Plot 2D poses, if any
+    poses = gtsam.utilities.allPose2s(values)
+    for key in poses.keys():
+        pose = poses.atPose2(key)
+        if marginals:
+            covariance = marginals.marginalCovariance(key)
+        else:
+            covariance = None
+
+        gtsam_plot.plot_pose2_on_axes(axes, pose, covariance=covariance, axis_length=scale)
+
+    # Then 3D poses, if any
+    poses = gtsam.utilities.allPose3s(values)
+    for key in poses.keys():
+        pose = poses.atPose3(key)
+        if marginals:
+            covariance = marginals.marginalCovariance(key)
+        else:
+            covariance = None
+
+        gtsam_plot.plot_pose3_on_axes(axes, pose, P=covariance, axis_length=scale)
+
+    fig.suptitle(title)  # fig.canvas.set_window_title(title.lower())  # plt.show()
+
+
+def relative_to_absolute_poses(cameras, points):
+    """
+    Convert relative poses to absolute poses.
+    """
+    abs_points, abs_cameras = [], [cameras[0]]
+
+    for bundle_camera, bundle_points in zip(cameras, points):
+        abs_cameras.append(abs_cameras[0].compose(bundle_camera))
+        bundle_abs_points = [abs_cameras[-1].transformFrom(point) for point in bundle_points]
+        abs_points.extend(bundle_abs_points)
+
+    return np.array(abs_cameras), np.array(abs_points)
+
+
+def gtsam_plot_point3_fixed(fignum: int, point: gtsam.Point3, linespec: str, P: np.ndarray = None,
+                            axis_labels: Iterable[str] = ("X axis", "Y axis", "Z axis"), ) -> plt.Figure:
+    """
+    Plot a 3D point on given figure with given `linespec`.
+
+    Args:
+        fignum: Integer representing the figure number to use for plotting.
+        point: The point to be plotted.
+        linespec: String representing formatting options for Matplotlib.
+        P: Marginal covariance matrix to plot the uncertainty of the estimation.
+        axis_labels: List of axis labels to set.
+
+    Returns:
+        fig: The matplotlib figure.
+
+    """
+    fig = plt.figure(fignum)
+    axes = fig.add_subplot(111, projection='3d')
+    gtsam_plot.plot_point3_on_axes(axes, point, linespec, P)
+
+    axes.set_xlabel(axis_labels[0])
+    axes.set_ylabel(axis_labels[1])
+    axes.set_zlabel(axis_labels[2])
+
+    return fig
+
+
+def gtsam_plot_3d_points_fixed(fignum, values, linespec="g*", marginals=None, title="3D Points",
+                               axis_labels=('X axis', 'Y axis', 'Z axis')):
+    """
+    Plots the Point3s in `values`, with optional covariances.
+    Finds all the Point3 objects in the given Values object and plots them.
+    If a Marginals object is given, this function will also plot marginal
+    covariance ellipses for each point.
+
+    Args:
+        fignum (int): Integer representing the figure number to use for plotting.
+        values (gtsam.Values): Values dictionary consisting of points to be plotted.
+        linespec (string): String representing formatting options for Matplotlib.
+        marginals (numpy.ndarray): Marginal covariance matrix to plot the
+            uncertainty of the estimation.
+        title (string): The title of the plot.
+        axis_labels (iterable[string]): List of axis labels to set.
+    """
+
+    keys = values.keys()
+
+    # Plot points and covariance matrices
+    for key in keys:
+        try:
+            point = values.atPoint3(key)
+            if marginals is not None:
+                covariance = marginals.marginalCovariance(key)
+            else:
+                covariance = None
+
+            fig = gtsam_plot_point3_fixed(fignum, point, linespec, covariance, axis_labels=axis_labels)
+
+        except RuntimeError:
+            continue  # I guess it's not a Point3
+
+    fig = plt.figure(fignum)
+    fig.suptitle(title)
+    # fig.canvas.set_window_title(title.lower())
+    plt.show()

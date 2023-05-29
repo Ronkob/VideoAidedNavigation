@@ -1,11 +1,16 @@
 import os
 import gtsam
+from gtsam.utils import plot as gtsam_plot
 import numpy as np
 import matplotlib.pyplot as plt
 
 import VAN_ex.code.Ex3.ex3 as ex3_utils
+from VAN_ex.code import utils
 from VAN_ex.code.Ex4.ex4 import TracksDB
 from VAN_ex.code.Ex4.ex4 import Track  # Don't remove
+from VAN_ex.code.BundleAdjustment import BundleWindow
+from VAN_ex.code.BundleAdjustment import BundleAdjustment
+
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
@@ -22,14 +27,13 @@ def q5_1(track_db):
         left_locations.append(locations[frame_id][0])
         right_locations.append(locations[frame_id][1])
 
-    # Present a graph of the reprojection error size (L2 norm) over the track’s images.
-    # total_proj_dist = \
-    #     plot_reprojection_error((left_proj, right_proj), (left_locations, right_locations), track.get_frame_ids())
+    # Present a graph of the reprojection error size (L2 norm) over the track’s images.  # total_proj_dist = \  #
+    # plot_reprojection_error((left_proj, right_proj), (left_locations, right_locations), track.get_frame_ids())
 
-    # Present a graph of the factor error over the track’s images.
-    # errors = plot_factor_error(factors, initial_estimates, track.get_frame_ids())
+    # Present a graph of the factor error over the track’s images.  # errors = plot_factor_error(factors,
+    # initial_estimates, track.get_frame_ids())
 
-    # Present a graph of the factor error as a function of the reprojection error.
+    # Present a graph of the factor error as a function of the reprojection error.  #   #
     # plot_factor_vs_reprojection_error(errors, total_proj_dist)
 
 
@@ -46,23 +50,25 @@ def q5_2(tracks_db):
     The first Bundle window consists of the first two keyframes with all the frames between them,
     with all the relevant tracking data.
     """
-    # keyframes = keyframes_criterion(tracks_db)
     keyframes = [0, 5]  # For debugging - first two keyframes
-    bundle_windows = get_bundle_windows(keyframes)
-    first_bundle = bundle_windows[0]
-    graph, initial_estimates, points, cameras = factor_graph_for_bundle(first_bundle, tracks_db)
+    bundle_window = BundleWindow.Bundle(keyframes[0], keyframes[1])
+    bundle_window.create_graph(np.load(T_ARR_PATH), tracks_db)
+    graph, initial_estimates, points, cameras = bundle_window.graph, bundle_window.initial_estimates, \
+        bundle_window.points, bundle_window.cameras
 
-    # Print the total factor graph error before and after the optimization.
-    print('Initial error = {}'.format(graph.error(initial_estimates)))
-    optimizer = gtsam.LevenbergMarquardtOptimizer(graph, initial_estimates)
-    result = optimizer.optimize()
-    print('Final error = {}'.format(graph.error(result)))
+    result = bundle_window.optimize()
+
+    print('Initial error = {}'.format(bundle_window.get_factor_error(initial=True)))
+    print('Final error = {}'.format(bundle_window.get_factor_error(initial=False)))
 
     # Plot the resulting positions of the first bundle both as a 3D graph, and as a view-from-above (2d)
     # of the scene, with all cameras and points.
-    # gtsam.utils.set_axes_equal(0)
-    # gtsam.utils.plot_trajectory(result)  # / gtsam.utils.plot_3d_points(result)
-    # plot_view_from_above(result, first_bundle, cameras, points)
+    marginals = bundle_window.get_marginals()
+    utils.gtsam_plot_trajectory_fixed(fignum=0, values=result,)
+    gtsam_plot.set_axes_equal(fignum=0)
+    plt.show()
+
+    plot_view_from_above(result, bundle_window, cameras, points)
 
 
 def q5_3(tracks_db):
@@ -72,29 +78,35 @@ def q5_3(tracks_db):
     Calculate the absolute pose of the keyframes in global (camera 0) coordinate system.
     """
     # keyframes = keyframes_criterion(tracks_db)  # Choose all the keyframes along the trajectory
-    keyframes = [0, 5, 10, 15, 20, 25]  # For debugging
-    bundle_windows = get_bundle_windows(keyframes)
-    cameras_rel_pose, points_rel_pose = [], []
+    # keyframes = [0, 5, 10, 15, 20, 25]  # For debugging
+    # bundle_windows = get_bundle_windows(keyframes)
+    # cameras_rel_pose, points_rel_pose = [], []
+    #
+    # # Solve all resulting Bundle windows
+    # for window in bundle_windows:
+    #     graph, initial_estimates, points, cameras = factor_graph_for_bundle(window, tracks_db)
+    #     optimizer = gtsam.LevenbergMarquardtOptimizer(graph, initial_estimates)
+    #     result = optimizer.optimize()
+    #     cameras_rel_pose.append(
+    #         result.atPose3(gtsam.symbol('c', window[-1])))  # Between each keyframe and its predecessor
+    #     points_rel_pose.append([result.atPoint3(point) for point in points])
 
-    # Solve all resulting Bundle windows
-    for window in bundle_windows:
-        graph, initial_estimates, points, cameras = factor_graph_for_bundle(window, tracks_db)
-        optimizer = gtsam.LevenbergMarquardtOptimizer(graph, initial_estimates)
-        result = optimizer.optimize()
-        cameras_rel_pose.append(result.atPose3(gtsam.symbol('c', window[-1])))  # Between each keyframe and its predecessor
-        points_rel_pose.append([result.atPoint3(point) for point in points])
+    bundle_adjustment = BundleAdjustment.BundleAdjustment(tracks_db, np.load(T_ARR_PATH))
+    bundle_adjustment.decide_on_keyframes_by_time()
+    bundle_adjustment.solve()
+    cameras_rel_pose, points_rel_pose = bundle_adjustment.get_relative_poses()
 
     # Present a view from above (2d) of the scene, with all keyframes (left camera only) and 3D points.
     # Overlay the estimated keyframes with the Ground Truth poses of the keyframes.
     abs_cameras, abs_points = relative_to_absolute_poses(cameras_rel_pose, points_rel_pose)
-    ground_truth_keyframes = np.array(ex3_utils.get_ground_truth_transformations())[keyframes][:, :, [-1]].squeeze()
+    ground_truth_keyframes = np.array(ex3_utils.get_ground_truth_transformations())[bundle_adjustment.keyframes][:, :, [-1]].squeeze()
     abs_cameras = np.array([camera.translation() for camera in abs_cameras])
-    # plot_view_from_above2(abs_cameras, abs_points, ground_truth_keyframes)
+    plot_view_from_above2(abs_cameras, abs_points, ground_truth_keyframes)
 
     # Present the keyframe localization error in meters (location difference only - Euclidean
     # distance) over time.
     euclidean_distance = calculate_euclidian_dist(abs_cameras, ground_truth_keyframes)
-    plot_keyframe_localization_error(len(keyframes), euclidean_distance)
+    plot_keyframe_localization_error(len(bundle_adjustment.keyframes), euclidean_distance)
 
 
 # ===== Helper functions =====
@@ -152,7 +164,8 @@ def triangulate_and_project(track, tracks_db):
         point = gtsam.StereoPoint2(xl, xr, y)
 
         # Create a factor for each frame projection and present a graph of the factor error over the track’s frames.
-        factor = gtsam.GenericStereoFactor3D(point, gtsam.noiseModel.Isotropic.Sigma(3, 1.0), cam_symbol, point_symbol, K)
+        factor = gtsam.GenericStereoFactor3D(point, gtsam.noiseModel.Isotropic.Sigma(3, 1.0), cam_symbol, point_symbol,
+                                             K)
         factors.append(factor)
 
     return left_proj, right_proj, initial_estimates, factors
@@ -175,7 +188,6 @@ def fix_ext_mat(ext_mat):
 
 
 def plot_reprojection_error(projections, locations, frame_ids):
-
     """
     Present a graph of the reprojection error size (L2 norm) over the track’s images.
     """
@@ -226,6 +238,7 @@ def keyframes_criterion(track_db):
     the estimated distance travelled, lapsed time, features tracked or any other
     relevant (and available) criterion.
     """
+    # TODO: implement
     pass
 
 
@@ -311,8 +324,11 @@ def plot_view_from_above(result, bundle_window, cameras, points):
     ax.scatter(points[:, 0], points[:, 2], s=1, c='cyan', label="Points")
 
     ax.set_title("Points and cameras as a view from above of the scene")
-    # ax.set_xlim(-250, 350)
-    # ax.set_ylim(-100, 430)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Z')
+
+    ax.set_ylim([-10, 200])
+
     plt.legend()
     plt.show()
 
@@ -326,7 +342,8 @@ def plot_view_from_above2(relative_cameras, relative_points, ground_truth_keyfra
 
     ax.scatter(relative_cameras[:, 0], relative_cameras[:, 2], s=1, c='red', label="Keyframes")
     ax.scatter(relative_points[:, 0], relative_points[:, 2], s=1, c='cyan', label="Points")
-    ax.scatter(ground_truth_keyframes[:, 0], ground_truth_keyframes[:, 2], s=1, c='green', label="Keyframes ground truth")
+    ax.scatter(ground_truth_keyframes[:, 0], ground_truth_keyframes[:, 2], s=1, c='green',
+               label="Keyframes ground truth")
 
     ax.set_title("Left cameras, 3D points and GT Poses of keyframes as a view from above of the scene")
     # ax.set_xlim(-250, 350)
@@ -376,9 +393,9 @@ def run_ex5():
     # Load tracks DB
     tracks_db = TracksDB.deserialize(DB_PATH)
 
-    q5_1(tracks_db)
+    # q5_1(tracks_db)
 
-    q5_2(tracks_db)
+    # q5_2(tracks_db)
 
     q5_3(tracks_db)
 
