@@ -98,15 +98,19 @@ def q5_3(tracks_db):
 
     # Present a view from above (2d) of the scene, with all keyframes (left camera only) and 3D points.
     # Overlay the estimated keyframes with the Ground Truth poses of the keyframes.
+    ground_truth_keyframes = np.array(ex3_utils.calculate_camera_trajectory(ex3_utils.get_ground_truth_transformations()))[bundle_adjustment.keyframes]
+
+    # translate the relative poses to absolute poses
+    # TODO: fix this, maybe in BundleWindow class, create_graph method - incorrect translation
     abs_cameras, abs_points = relative_to_absolute_poses(cameras_rel_pose, points_rel_pose)
-    ground_truth_keyframes = np.array(ex3_utils.get_ground_truth_transformations())[bundle_adjustment.keyframes][:, :, [-1]].squeeze()
     abs_cameras = np.array([camera.translation() for camera in abs_cameras])
+
     plot_view_from_above2(abs_cameras, abs_points, ground_truth_keyframes)
 
     # Present the keyframe localization error in meters (location difference only - Euclidean
     # distance) over time.
-    euclidean_distance = calculate_euclidian_dist(abs_cameras, ground_truth_keyframes)
-    plot_keyframe_localization_error(len(bundle_adjustment.keyframes), euclidean_distance)
+    # euclidean_distance = calculate_euclidian_dist(abs_cameras, ground_truth_keyframes)
+    # plot_keyframe_localization_error(len(bundle_adjustment.keyframes), euclidean_distance)
 
 
 # ===== Helper functions =====
@@ -340,9 +344,12 @@ def plot_view_from_above2(relative_cameras, relative_points, ground_truth_keyfra
     """
     fig, ax = plt.subplots()
 
-    ax.scatter(relative_cameras[:, 0], relative_cameras[:, 2], s=1, c='red', label="Keyframes")
-    ax.scatter(relative_points[:, 0], relative_points[:, 2], s=1, c='cyan', label="Points")
-    ax.scatter(ground_truth_keyframes[:, 0], ground_truth_keyframes[:, 2], s=1, c='green',
+    print("len of cameras", relative_cameras.shape)
+    print("len of points", relative_points.shape)
+    print("len of gt", ground_truth_keyframes.shape)
+    ax.scatter(relative_cameras[:, 0], relative_cameras[:, 2], s=50, c='red', label="Keyframes", marker='x')
+    ax.scatter(relative_points[:, 0], relative_points[:, 2], s=1, c='cyan', label="Points", marker='o')
+    ax.scatter(ground_truth_keyframes[:, 0], ground_truth_keyframes[:, 2], s=1, c='green', marker='^',
                label="Keyframes ground truth")
 
     ax.set_title("Left cameras, 3D points and GT Poses of keyframes as a view from above of the scene")

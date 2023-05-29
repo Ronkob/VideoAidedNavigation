@@ -378,6 +378,18 @@ def relative_to_absolute_poses(cameras, points):
     return np.array(abs_cameras), np.array(abs_points)
 
 
+def gtsam_left_cameras_trajectory(relative_T_arr):
+    """
+    Computes the left cameras 3d positions relative to the starting position
+    :param T_arr: relative to first camera transformations array
+    :return: numpy array with dimension num T_arr X 3
+    """
+    global_cam_loc = []
+    for t in relative_T_arr:
+        global_cam_loc.append(t.translation())
+    return np.array(global_cam_loc)
+
+
 def gtsam_plot_point3_fixed(fignum: int, point: gtsam.Point3, linespec: str, P: np.ndarray = None,
                             axis_labels: Iterable[str] = ("X axis", "Y axis", "Z axis"), ) -> plt.Figure:
     """

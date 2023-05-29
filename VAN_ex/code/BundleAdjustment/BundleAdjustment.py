@@ -16,9 +16,9 @@ class BundleAdjustment:
         self.tracks_db = tracks_db
         self.T_arr = T_arr
 
-    def decide_on_keyframes_by_time(self, keyframe_time_interval: float = 5):
+    def decide_on_keyframes_by_time(self, keyframe_time_interval: float = 3):
         key_frames = []
-        for frame_id in range(len(self.tracks_db.frame_ids))[:50]:
+        for frame_id in range(len(self.tracks_db.frame_ids))[:100]:
             if frame_id % keyframe_time_interval == 0:
                 key_frames.append(frame_id)
 

@@ -29,8 +29,9 @@ class Bundle:
         self.optimizer = gtsam.LevenbergMarquardtOptimizer(self.graph, self.initial_estimates)
         # print a detailed debug info on self.graph and self.initial_estimates
         print("optimizing...")
-        print("self.graph: ", self.graph)
-        # print("self.initial_estimates: ", self.initial_estimates)
+        print("self.graph: ", self.graph.size())
+        print("self.initial_estimates: ", self.initial_estimates.size())
+
         self.result = self.optimizer.optimize()
         return self.result
 
