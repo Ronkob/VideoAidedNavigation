@@ -1,30 +1,41 @@
-# SLAM
-Video Navigation
+# SLAM Project
+Video Navigation.
 
-Submitted By: Dor Messica, Ron Kobrowski
+Submitted By: Dor Messica, Ron Kobrowski.
 
-Draft made with the help of copilot:
 ## Introduction
-In this project we will implement a SLAM algorithm.
-SLAM stands for Simultaneous Localization and Mapping.
+In this project we will implement a SLAM algorithm, when SLAM stands for "Simultaneous, Localization and Mapping".
 This means that we will create a map of the environment, and at the same time we will localize ourselves in the map.
+
+The project will be devided to 7 exercises, where we will gradually develop a largescale project that employs a suite of algorithms to provide local visual odometry and global trajectory estimation. Simply put, we will find the vehicle locations using only its cameras. The system will run on the KITTI stereo dataset and will tackle these challenges using image processing, image understanding and 3D optimization techniques to estimate the vehicle path and the geometric structure of the world.
+In this project, we will make an extensive use of opencv (mainly for features extraction and matching) and gtsam (for factor and pose graphs).
 
 <img src=VAN_ex/media/path_start_gif.gif width="500" height="" alt="">
 
-## show stuff from media directory
+## Ex1
+In this exercise we will develop the feature-tracking system, which is a key-component in any vision-based navigation system. Basically, the feature-tracking system receives as input a series of images (or, in our case, stereo pairs) and outputs trajectories of points in the image, where each track represents the different pixel locations of a certain object in the scene.
+
+![image](https://github.com/Dor890/SLAM/assets/64433958/482a9f49-4aff-4471-8937-a9b87196c125)
+
+![image](https://github.com/Dor890/SLAM/assets/64433958/b727ce39-ccf9-4537-b700-71adfae0ec94)
+
+## Ex2
+In this exercise we explore a geometric outlier rejection policy and use the stereo matches for triangulation to produce a 3D point cloud.
+
+![image](https://github.com/Dor890/SLAM/assets/64433958/98a48ce7-afca-4daf-bb8f-b344a3d90ea7)
+
+## Ex3
+In this exercise we will move forward in time to the next stereo pair and match the left image to the previous left image and run PnP using RANSAC iterations to estimate the relative motion. We will also use the extra information - we now have two stereo pairs - to reject (almost all of) the remaining outliers.
+
 <img src=VAN_ex/media/trajectory.png width="500" height="" alt="initial trajectory">
 
-## part 1 - ex1 folder
-connecting the stereo by detecting features in the images and matching them.
+## Ex4
+In this exercise we extend the feature tracking across multiple frames and implement a suitable database for the tracked features. We use the matches we got in exercise 3 with careful bookkeeping to keep track (no pun intended) of which feature was tracked across what frame. This information will be important in future stages when we will build the Bundle Adjustment / Loop Closure optimization.
 
-## part 2 - ex2 folder
-in this part we will create a map of the environment.
-this means that we will create a 3d scatter plot of the points in the environment.
-
-## part 3 - ex3 folder
-now, once we have the map, we can use it to make the localization part of the SLAM.
-we will use the PNP algorithm, with added RANSAC and refinement.
-
-## part 4 - ex4 folder
-bla bla tracking of the tracks bla bla
 <img src=VAN_ex/code/Ex4/run.gif width="500" height="" alt="">
+
+## Ex5
+In this exercise we run bundle adjustment to leverage the information across multiple images as well as taking a probabilistic approach to the problem. The results of the previous exercises will be used as initial starting point for the bundle optimization.
+To keep the computation cost down we will run the optimization on small segments of consecutive images. We use the GTSAM optimization library to handle the mathematical details of the process.
+The result of the computation is an accurate estimation of the local trajectory of the vehicle and can be used as Visual Odometry.
+
