@@ -1,6 +1,5 @@
 import os
 import gtsam
-import cv2
 from gtsam.utils import plot as gtsam_plot
 import numpy as np
 import matplotlib.pyplot as plt
@@ -52,7 +51,7 @@ def q5_2(tracks_db):
     The first Bundle window consists of the first two keyframes with all the frames between them,
     with all the relevant tracking data.
     """
-    keyframes = [0, 10]  # For debugging - first two keyframes
+    keyframes = [0, 10]  # First two keyframes
     bundle_window = BundleWindow.Bundle(keyframes[0], keyframes[1])
     bundle_window.create_graph(np.load(T_ARR_PATH), tracks_db)
     result = bundle_window.optimize()
@@ -106,22 +105,8 @@ def q5_3(tracks_db):
     Extract the relative pose between each keyframe and its predecessor (location + angles).
     Calculate the absolute pose of the keyframes in global (camera 0) coordinate system.
     """
-    # keyframes = keyframes_criterion(tracks_db)  # Choose all the keyframes along the trajectory
-    # keyframes = [0, 5, 10, 15, 20, 25]  # For debugging
-    # bundle_windows = get_bundle_windows(keyframes)
-    # cameras_rel_pose, points_rel_pose = [], []
-    #
-    # # Solve all resulting Bundle windows
-    # for window in bundle_windows:
-    #     graph, initial_estimates, points, cameras = factor_graph_for_bundle(window, tracks_db)
-    #     optimizer = gtsam.LevenbergMarquardtOptimizer(graph, initial_estimates)
-    #     result = optimizer.optimize()
-    #     cameras_rel_pose.append(
-    #         result.atPose3(gtsam.symbol('c', window[-1])))  # Between each keyframe and its predecessor
-    #     points_rel_pose.append([result.atPoint3(point) for point in points])
-
     bundle_adjustment = BundleAdjustment.BundleAdjustment(tracks_db, np.load(T_ARR_PATH))
-    bundle_adjustment.decide_on_keyframes_by_time()
+    bundle_adjustment.choose_keyframes(type='end_frame')
     bundle_adjustment.solve()
     cameras_rel_pose, points_rel_pose = bundle_adjustment.get_relative_poses()
 
@@ -129,8 +114,7 @@ def q5_3(tracks_db):
     # Overlay the estimated keyframes with the Ground Truth poses of the keyframes.
     ground_truth_keyframes = np.array(ex3_utils.calculate_camera_trajectory(ex3_utils.get_ground_truth_transformations()))[bundle_adjustment.keyframes]
 
-    # translate the relative poses to absolute poses
-    # TODO: fix this, maybe in BundleWindow class, create_graph method - incorrect translation
+    # Translate the relative poses to absolute poses
     abs_cameras, abs_points = relative_to_absolute_poses(cameras_rel_pose, points_rel_pose)
     abs_cameras = np.array([camera.translation() for camera in abs_cameras])
 
@@ -138,8 +122,8 @@ def q5_3(tracks_db):
 
     # Present the keyframe localization error in meters (location difference only - Euclidean
     # distance) over time.
-    # euclidean_distance = calculate_euclidian_dist(abs_cameras, ground_truth_keyframes)
-    # plot_keyframe_localization_error(len(bundle_adjustment.keyframes), euclidean_distance)
+    euclidean_distance = calculate_euclidian_dist(abs_cameras, ground_truth_keyframes)
+    plot_keyframe_localization_error(len(bundle_adjustment.keyframes), euclidean_distance)
 
 
 # ===== Helper functions =====
@@ -166,8 +150,8 @@ def triangulate_and_project(track, tracks_db):
     first_frame_id = track_frames[0]
     first_frame_ext_mat = T_arr[first_frame_id]
 
-    world_base_camera = fix_ext_mat(first_frame_ext_mat)  # World coordinates for transformations
-    last_frame_in_world = ex3_utils.composite_transformations(world_base_camera, last_frame_ext_mat)
+    # world_base_camera = fix_ext_mat(first_frame_ext_mat)  # World coordinates for transformations
+    last_frame_in_world = ex3_utils.composite_transformations(first_frame_ext_mat, last_frame_ext_mat)
     last_camera = fix_ext_mat(last_frame_in_world)
 
     point_symbol = gtsam.symbol('q', 0)
@@ -183,7 +167,7 @@ def triangulate_and_project(track, tracks_db):
 
     for frame_id in track_frames:
         ext_mat = T_arr[frame_id]
-        cur_ext_mat = ex3_utils.composite_transformations(world_base_camera, ext_mat)
+        cur_ext_mat = ex3_utils.composite_transformations(first_frame_ext_mat, ext_mat)
         cur_cam_in_world = fix_ext_mat(cur_ext_mat)
 
         cam_symbol = gtsam.symbol('c', frame_id)
@@ -222,8 +206,8 @@ def fix_ext_mat(ext_mat):
     """
     R = ext_mat[:, :3]
     t = ext_mat[:, 3]
-    t = - R.T @ t
-    return np.hstack((R.T, t.reshape(3, 1)))
+    new_t = -R.T @ t
+    return np.hstack((R.T, new_t.reshape(3, 1)))
 
 
 def plot_reprojection_error(projections, locations, frame_ids):
@@ -384,12 +368,12 @@ def plot_view_from_above2(relative_cameras, relative_points, ground_truth_keyfra
     """
     fig, ax = plt.subplots()
 
-    print("len of cameras", relative_cameras.shape)
-    print("len of points", relative_points.shape)
-    print("len of gt", ground_truth_keyframes.shape)
-    ax.scatter(relative_cameras[:, 0], relative_cameras[:, 2], s=50, c='red', label="Keyframes", marker='x')
+    # print("len of cameras", relative_cameras.shape)
+    # print("len of points", relative_points.shape)
+    # print("len of gt", ground_truth_keyframes.shape)
+    ax.scatter(relative_cameras[:, 0], relative_cameras[:, 2], s=3, c='red', label="Keyframes", marker='x')
     ax.scatter(relative_points[:, 0], relative_points[:, 2], s=1, c='cyan', label="Points", marker='o')
-    ax.scatter(ground_truth_keyframes[:, 0], ground_truth_keyframes[:, 2], s=1, c='green', marker='^',
+    ax.scatter(ground_truth_keyframes[:, 0], ground_truth_keyframes[:, 2], s=3, c='green', marker='^',
                label="Keyframes ground truth")
 
     ax.set_title("Left cameras, 3D points and GT Poses of keyframes as a view from above of the scene")
@@ -403,10 +387,12 @@ def relative_to_absolute_poses(cameras, points):
     """
     Convert relative poses to absolute poses.
     """
-    abs_points, abs_cameras = [], [cameras[0]]
+    base_camera = cameras[0]
+    abs_points, abs_cameras = [], [base_camera]
 
-    for bundle_camera, bundle_points in zip(cameras, points):
-        abs_cameras.append(abs_cameras[0].compose(bundle_camera))
+    for bundle_camera, bundle_points in zip(cameras[1:], points):
+        base_camera = base_camera.compose(bundle_camera)
+        abs_cameras.append(base_camera)
         bundle_abs_points = [abs_cameras[-1].transformFrom(point) for point in bundle_points]
         abs_points.extend(bundle_abs_points)
 
@@ -417,11 +403,12 @@ def plot_keyframe_localization_error(keyframes_len, errors):
     """
     Present the keyframe localization error in meters (location difference only - Euclidean distance) over time.
     """
-    plt.plot(range(keyframes_len), errors)
-    plt.title("Keyframe localization error in meters over time")
-    plt.ylabel('Error')
-    plt.xlabel('Time')
-    plt.show()
+    fig, ax = plt.subplots()
+    ax.plot(range(keyframes_len), errors)
+    ax.set_title("Keyframe localization error in meters over time")
+    ax.set_ylabel('Error')
+    ax.set_xlabel('Time')
+    plt.savefig('keyframe_localization_error.png')
 
 
 def calculate_euclidian_dist(abs_cameras, ground_truth_cameras):
@@ -456,6 +443,20 @@ def plot_proj_on_images(left_proj, right_proj, left_image, right_image,
     plt.savefig('proj_on_images_{}.png'.format(type))
 
 
+def cameras_to_locations(abs_cameras):
+    """
+    Convert cameras to locations.
+    """
+    cam_locs = []
+
+    for camera in abs_cameras:
+        R = np.array(camera.rotation().matrix())
+        t = np.array(camera.translation())
+        cam_locs.append(-R.T @ t)
+
+    return np.array(cam_locs)
+
+
 # ===== End of Helper Functions =====
 
 
@@ -463,7 +464,7 @@ def run_ex5():
     """
     Runs all exercise 5 sections.
     """
-    np.random.seed(1)
+    np.random.seed(13)
     # Load tracks DB
     tracks_db = TracksDB.deserialize(DB_PATH)
 
