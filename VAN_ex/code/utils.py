@@ -455,3 +455,16 @@ def gtsam_plot_3d_points_fixed(fignum, values, linespec="g*", marginals=None, ti
     fig.suptitle(title)
     # fig.canvas.set_window_title(title.lower())
     plt.show()
+
+
+def get_rand_track(track_len, tracks):
+    """
+    Get a randomized track with length of at least track_len.
+    """
+    track_id = np.random.choice(tracks.track_ids)
+    track = tracks.tracks[track_id]
+    while len(track.frame_ids) < track_len:
+        track_id = np.random.choice(tracks.track_ids)
+        track = tracks.tracks[track_id]
+    return track
+

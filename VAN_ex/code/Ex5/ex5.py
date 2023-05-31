@@ -1,9 +1,11 @@
 import os
 import gtsam
+import cv2
 from gtsam.utils import plot as gtsam_plot
 import numpy as np
 import matplotlib.pyplot as plt
 
+import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex3.ex3 as ex3_utils
 from VAN_ex.code import utils
 from VAN_ex.code.Ex4.ex4 import TracksDB
@@ -18,8 +20,8 @@ old_k, m1, m2 = ex3_utils.k, ex3_utils.m1, ex3_utils.m2
 
 
 def q5_1(track_db):
-    # track = ex4_utils.get_rand_track(10, track_db)
-    track = track_db.tracks[12]  # For debugging
+    track = utils.get_rand_track(10, track_db)
+    # track = track_db.tracks[12]  # For debugging
     locations = track.kp
     left_proj, right_proj, initial_estimates, factors = triangulate_and_project(track, track_db)
     left_locations, right_locations = [], []
@@ -27,11 +29,11 @@ def q5_1(track_db):
         left_locations.append(locations[frame_id][0])
         right_locations.append(locations[frame_id][1])
 
-    # Present a graph of the reprojection error size (L2 norm) over the track’s images.  # total_proj_dist = \  #
-    # plot_reprojection_error((left_proj, right_proj), (left_locations, right_locations), track.get_frame_ids())
+    # Present a graph of the reprojection error size (L2 norm) over the track’s images
+    total_proj_dist = plot_reprojection_error((left_proj, right_proj), (left_locations, right_locations), track.get_frame_ids())
 
-    # Present a graph of the factor error over the track’s images.  # errors = plot_factor_error(factors,
-    # initial_estimates, track.get_frame_ids())
+    # Present a graph of the factor error over the track’s images.
+    errors = plot_factor_error(factors, initial_estimates, track.get_frame_ids())
 
     # Present a graph of the factor error as a function of the reprojection error.  #   #
     # plot_factor_vs_reprojection_error(errors, total_proj_dist)
@@ -50,25 +52,52 @@ def q5_2(tracks_db):
     The first Bundle window consists of the first two keyframes with all the frames between them,
     with all the relevant tracking data.
     """
-    keyframes = [0, 5]  # For debugging - first two keyframes
+    keyframes = [0, 10]  # For debugging - first two keyframes
     bundle_window = BundleWindow.Bundle(keyframes[0], keyframes[1])
     bundle_window.create_graph(np.load(T_ARR_PATH), tracks_db)
-    graph, initial_estimates, points, cameras = bundle_window.graph, bundle_window.initial_estimates, \
-        bundle_window.points, bundle_window.cameras
-
     result = bundle_window.optimize()
 
     print('Initial error = {}'.format(bundle_window.get_factor_error(initial=True)))
     print('Final error = {}'.format(bundle_window.get_factor_error(initial=False)))
+
+    # Pick a projection factor between frame c and 3d point q.
+    random_factor = bundle_window.graph.at(3)
+
+    # Print its error for the initial values of c and q.
+    print('Initial error of random factor = {}'.format(random_factor.error(bundle_window.initial_estimates)))
+
+    # Initialize a StereoCamera with the initial pose for c, use it to project the initial
+    # position of q.
+    c, q = random_factor.keys()
+    pose = bundle_window.initial_estimates.atPose3(c)
+    stereo_camera = gtsam.StereoCamera(pose, compute_K())
+    p3d = bundle_window.initial_estimates.atPoint3(q)
+    first_proj = stereo_camera.project(p3d)
+    first_lproj, first_rproj = (first_proj.uL(), first_proj.v()), (first_proj.uR(), first_proj.v())
+
+    # Present the left and right projections on both images,
+    # along with the measurement.
+    left_image, right_image = ex1_utils.read_images(0)
+    plot_proj_on_images(first_lproj, first_rproj, left_image, right_image)
+
+    # Repeat this process for the final (optimized) values of c and q.
+    print('Final error of random factor = {}'.format(random_factor.error(result)))
+    pose = bundle_window.result.atPose3(c)
+    stereo_camera = gtsam.StereoCamera(pose, compute_K())
+    p3d = bundle_window.result.atPoint3(q)
+    projection = stereo_camera.project(p3d)
+    left_proj, right_proj = (projection.uL(), projection.v()), (projection.uR(), projection.v())
+    plot_proj_on_images(left_proj, right_proj, left_image, right_image,
+                        before=(first_lproj, first_rproj), type='after')
 
     # Plot the resulting positions of the first bundle both as a 3D graph, and as a view-from-above (2d)
     # of the scene, with all cameras and points.
     marginals = bundle_window.get_marginals()
     utils.gtsam_plot_trajectory_fixed(fignum=0, values=result,)
     gtsam_plot.set_axes_equal(fignum=0)
-    plt.show()
+    plt.savefig('q5_2_3d.png')
 
-    plot_view_from_above(result, bundle_window, cameras, points)
+    plot_view_from_above(result, bundle_window.cameras, bundle_window.points)
 
 
 def q5_3(tracks_db):
@@ -132,9 +161,10 @@ def triangulate_and_project(track, tracks_db):
     K = compute_K()
 
     track_frames = track.get_frame_ids()
-    last_frame_id = track.frame_ids[-1]
+    last_frame_id = track_frames[-1]
     last_frame_ext_mat = T_arr[last_frame_id]
-    first_frame_ext_mat = T_arr[0]
+    first_frame_id = track_frames[0]
+    first_frame_ext_mat = T_arr[first_frame_id]
 
     world_base_camera = fix_ext_mat(first_frame_ext_mat)  # World coordinates for transformations
     last_frame_in_world = ex3_utils.composite_transformations(world_base_camera, last_frame_ext_mat)
@@ -156,11 +186,11 @@ def triangulate_and_project(track, tracks_db):
         cur_ext_mat = ex3_utils.composite_transformations(world_base_camera, ext_mat)
         cur_cam_in_world = fix_ext_mat(cur_ext_mat)
 
-        cam_symbol = gtsam.symbol('c', track_frames[frame_id])
+        cam_symbol = gtsam.symbol('c', frame_id)
         pose = gtsam.Pose3(cur_cam_in_world)
         initial_estimates.insert(cam_symbol, pose)
         stereo_frame = gtsam.StereoCamera(pose, K)
-        projection = stereo_frame.project(p3d)
+        projection = stereo_frame.project(p3d)  # Project point for each frame in track
         left_proj.append((projection.uL(), projection.v()))
         right_proj.append((projection.uR(), projection.v()))
 
@@ -187,8 +217,13 @@ def compute_K():
 
 
 def fix_ext_mat(ext_mat):
-    ext_mat[:, -1] *= -1  # t
-    return ext_mat  # gtsam.Rot3(R), gtsam.Point3(t)
+    """
+    Fix the extrinsic matrix to be in the correct format for gtsam.
+    """
+    R = ext_mat[:, :3]
+    t = ext_mat[:, 3]
+    t = - R.T @ t
+    return np.hstack((R.T, t.reshape(3, 1)))
 
 
 def plot_reprojection_error(projections, locations, frame_ids):
@@ -201,11 +236,15 @@ def plot_reprojection_error(projections, locations, frame_ids):
     right_proj_dist = np.linalg.norm(right_projections - right_locations, axis=1, ord=2)
     total_proj_dist = (left_proj_dist + right_proj_dist) / 2
 
-    plt.plot(frame_ids, total_proj_dist)
-    plt.title("Reprojection error over track's images")
-    plt.ylabel('Error')
-    plt.xlabel('Frames')
-    plt.show()
+    fig, ax = plt.subplots()
+    ax.plot(frame_ids, right_proj_dist, label='Right')
+    ax.plot(frame_ids, left_proj_dist, label='Left')
+
+    ax.set_title("Reprojection error over track's images")
+    ax.set_ylabel('Error')
+    ax.set_xlabel('Frames')
+    plt.legend()
+    plt.savefig('reprojection_error.png')
 
     return total_proj_dist
 
@@ -216,11 +255,12 @@ def plot_factor_error(factors, values, frame_ids):
     """
     errors = [factor.error(values) for factor in factors]
 
-    plt.plot(frame_ids, errors)
-    plt.title("Factor error over track's frames")
-    plt.ylabel('Error')
-    plt.xlabel('Frames')
-    plt.show()
+    fig, ax = plt.subplots()
+    ax.plot(frame_ids, errors)
+    ax.set_title("Factor error over track's frames")
+    ax.set_ylabel('Error')
+    ax.set_xlabel('Frames')
+    plt.savefig('factor_error.png')
 
     return errors
 
@@ -229,11 +269,11 @@ def plot_factor_vs_reprojection_error(errors, total_proj_dist):
     """
     Present a graph of the factor error as a function of the reprojection error.
     """
-    plt.plot(total_proj_dist, errors)
+    plt.scatter(total_proj_dist, errors)
     plt.title("Factor error as a function of the reprojection error")
     plt.ylabel('Factor error')
     plt.xlabel('Reprojection error')
-    plt.show()
+    plt.savefig('factor_vs_reprojection_error.png')
 
 
 def keyframes_criterion(track_db):
@@ -316,7 +356,7 @@ def factor_graph_for_bundle(bundle_window, tracks_db):
     return graph, initial_estimates, points, cameras
 
 
-def plot_view_from_above(result, bundle_window, cameras, points):
+def plot_view_from_above(result, cameras, points):
     """
     Plot the resulting positions as a view-from-above (2d) of the scene, with all cameras and points.
     """
@@ -334,7 +374,7 @@ def plot_view_from_above(result, bundle_window, cameras, points):
     ax.set_ylim([-10, 200])
 
     plt.legend()
-    plt.show()
+    plt.savefig('view_from_above.png')
 
 
 def plot_view_from_above2(relative_cameras, relative_points, ground_truth_keyframes):
@@ -356,7 +396,7 @@ def plot_view_from_above2(relative_cameras, relative_points, ground_truth_keyfra
     # ax.set_xlim(-250, 350)
     # ax.set_ylim(-100, 430)
     plt.legend()
-    plt.show()
+    plt.savefig('view_from_above2.png')
 
 
 def relative_to_absolute_poses(cameras, points):
@@ -390,6 +430,32 @@ def calculate_euclidian_dist(abs_cameras, ground_truth_cameras):
     return np.sqrt(sum_of_squared_diffs)
 
 
+def plot_proj_on_images(left_proj, right_proj, left_image, right_image,
+                        before=None, type='before'):
+    """
+    Plot the projection of the 3D points on the images.
+    """
+    fig, ax = plt.subplots(1, 2)
+    ax[0].imshow(left_image, cmap='gray')
+    ax[0].scatter(left_proj[0], left_proj[1], s=1, c='cyan', label='Point')
+    ax[0].set_title("Left image")
+    ax[0].set_xlabel('X')
+    ax[0].set_ylabel('Y')
+
+    ax[1].imshow(right_image, cmap='gray')
+    ax[1].scatter(right_proj[0], right_proj[1], s=1, c='cyan', label='Point')
+    ax[1].set_title("Right image")
+    ax[1].set_xlabel('X')
+    ax[1].set_ylabel('Y')
+
+    if before:
+        ax[0].scatter(before[0][0], before[0][1], s=1, c='red', label='Before')
+        ax[1].scatter(before[1][0], before[1][1], s=1, c='red', label='Before')
+
+    plt.legend(fontsize="7")
+    plt.savefig('proj_on_images_{}.png'.format(type))
+
+
 # ===== End of Helper Functions =====
 
 
@@ -397,6 +463,7 @@ def run_ex5():
     """
     Runs all exercise 5 sections.
     """
+    np.random.seed(1)
     # Load tracks DB
     tracks_db = TracksDB.deserialize(DB_PATH)
 

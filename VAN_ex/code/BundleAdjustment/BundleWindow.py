@@ -14,6 +14,7 @@ class Bundle:
         self.result = None
         self.points = []
         self.cameras = []
+        self.factor, self.camera, self.point = None, None, None
 
     def get_marginals(self):
         marginals = gtsam.Marginals(self.graph, self.result)
@@ -29,8 +30,8 @@ class Bundle:
         self.optimizer = gtsam.LevenbergMarquardtOptimizer(self.graph, self.initial_estimates)
         # print a detailed debug info on self.graph and self.initial_estimates
         print("optimizing...")
-        print("self.graph: ", self.graph.size())
-        print("self.initial_estimates: ", self.initial_estimates.size())
+        print("Size of graph: ", self.graph.size())
+        print("Number of initial estimates: ", self.initial_estimates.size())
 
         self.result = self.optimizer.optimize()
         return self.result
