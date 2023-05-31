@@ -3,7 +3,7 @@ import numpy as np
 from VAN_ex.code import utils
 from VAN_ex.code.Ex3 import ex3 as ex3_utils
 
-MAX_Z = 300
+MAX_Z = 350
 
 
 class Bundle:
@@ -39,7 +39,6 @@ class Bundle:
 
     def create_graph(self, T_arr, tracks_db):
         K = utils.create_gtsam_K()
-
         first_frame_ext_mat = T_arr[self.frames_idxs[0]]
         world_base_camera = utils.fix_ext_mat(first_frame_ext_mat)  # World coordinates for transformations
 

@@ -26,12 +26,15 @@ class BundleAdjustment:
             self.keyframes = key_frames
 
         elif type == 'end_frame':
-            FRAC = 0.75
+            FRAC = 0.85
             self.keyframes.append(0)
             while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
                 tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
                 end_frames = sorted([self.tracks_db.tracks[track].frame_ids[-1] for track in tracks_in_keyframe])
                 self.keyframes.append(end_frames[int(len(end_frames) * FRAC)])
+                if len(self.tracks_db.frame_ids) - 1 - self.keyframes[-1] < 10:
+                    self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
+                    break
         print('First 10 Keyframes: ', self.keyframes[:10])
 
     def solve(self):

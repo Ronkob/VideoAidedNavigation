@@ -12,7 +12,6 @@ from VAN_ex.code.Ex4.ex4 import Track  # Don't remove
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.BundleAdjustment import BundleAdjustment
 
-
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
 old_k, m1, m2 = ex3_utils.k, ex3_utils.m1, ex3_utils.m2
@@ -20,7 +19,6 @@ old_k, m1, m2 = ex3_utils.k, ex3_utils.m1, ex3_utils.m2
 
 def q5_1(track_db):
     track = utils.get_rand_track(10, track_db)
-    # track = track_db.tracks[12]  # For debugging
     locations = track.kp
     left_proj, right_proj, initial_estimates, factors = triangulate_and_project(track, track_db)
     left_locations, right_locations = [], []
@@ -51,7 +49,7 @@ def q5_2(tracks_db):
     The first Bundle window consists of the first two keyframes with all the frames between them,
     with all the relevant tracking data.
     """
-    keyframes = [0, 10]  # First two keyframes
+    keyframes = [0, 7]  # First two keyframes
     bundle_window = BundleWindow.Bundle(keyframes[0], keyframes[1])
     bundle_window.create_graph(np.load(T_ARR_PATH), tracks_db)
     result = bundle_window.optimize()
