@@ -33,7 +33,7 @@ def q5_1(track_db):
     errors = plot_factor_error(factors, initial_estimates, track.get_frame_ids())
 
     # Present a graph of the factor error as a function of the reprojection error.  #   #
-    # plot_factor_vs_reprojection_error(errors, total_proj_dist)
+    plot_factor_vs_reprojection_error(errors, total_proj_dist)
 
 
 def q5_2(tracks_db):
@@ -106,17 +106,26 @@ def q5_3(tracks_db):
     bundle_adjustment = BundleAdjustment.BundleAdjustment(tracks_db, np.load(T_ARR_PATH))
     bundle_adjustment.choose_keyframes(type='end_frame')
     bundle_adjustment.solve()
-    cameras_rel_pose, points_rel_pose = bundle_adjustment.get_relative_poses()
+    cameras_rel_pose, points_rel_pose, init_rel_pose = bundle_adjustment.get_relative_poses()
+
+    # For the last bundle window print the final position of the first frame of that bundle and
+    # the anchoring factor final error.
+    first_frame_pos = cameras_rel_pose[-2]
+    print('Final position of first frame in last bundle window = {}'.format(first_frame_pos))
+    print('Anchoring factor final error = {}'.format(0))
 
     # Present a view from above (2d) of the scene, with all keyframes (left camera only) and 3D points.
     # Overlay the estimated keyframes with the Ground Truth poses of the keyframes.
     ground_truth_keyframes = np.array(ex3_utils.calculate_camera_trajectory(ex3_utils.get_ground_truth_transformations()))[bundle_adjustment.keyframes]
 
     # Translate the relative poses to absolute poses
-    abs_cameras, abs_points = relative_to_absolute_poses(cameras_rel_pose, points_rel_pose)
+    abs_cameras, abs_points, init_cameras =\
+        relative_to_absolute_poses(cameras_rel_pose, points_rel_pose, init_rel_pose)
     abs_cameras = np.array([camera.translation() for camera in abs_cameras])
+    init_cameras = np.array([camera.translation() for camera in init_cameras])
+    # abs_cameras = np.array(cameras_to_locations(abs_cameras))
 
-    plot_view_from_above2(abs_cameras, abs_points, ground_truth_keyframes)
+    plot_view_from_above2(abs_cameras, abs_points, init_cameras, ground_truth_keyframes)
 
     # Present the keyframe localization error in meters (location difference only - Euclidean
     # distance) over time.
@@ -150,10 +159,9 @@ def triangulate_and_project(track, tracks_db):
 
     # world_base_camera = fix_ext_mat(first_frame_ext_mat)  # World coordinates for transformations
     last_frame_in_world = ex3_utils.composite_transformations(first_frame_ext_mat, last_frame_ext_mat)
-    last_camera = fix_ext_mat(last_frame_in_world)
 
     point_symbol = gtsam.symbol('q', 0)
-    base_pose = gtsam.Pose3(last_camera)
+    base_pose = gtsam.Pose3(fix_ext_mat(last_frame_in_world))
     base_stereo_frame = gtsam.StereoCamera(base_pose, K)
     xl, xr, y = tracks_db.feature_location(last_frame_id, track.get_track_id())
     point = gtsam.StereoPoint2(xl, xr, y)
@@ -166,10 +174,9 @@ def triangulate_and_project(track, tracks_db):
     for frame_id in track_frames:
         ext_mat = T_arr[frame_id]
         cur_ext_mat = ex3_utils.composite_transformations(first_frame_ext_mat, ext_mat)
-        cur_cam_in_world = fix_ext_mat(cur_ext_mat)
 
         cam_symbol = gtsam.symbol('c', frame_id)
-        pose = gtsam.Pose3(cur_cam_in_world)
+        pose = gtsam.Pose3(fix_ext_mat(cur_ext_mat))
         initial_estimates.insert(cam_symbol, pose)
         stereo_frame = gtsam.StereoCamera(pose, K)
         projection = stereo_frame.project(p3d)  # Project point for each frame in track
@@ -251,21 +258,12 @@ def plot_factor_vs_reprojection_error(errors, total_proj_dist):
     """
     Present a graph of the factor error as a function of the reprojection error.
     """
-    plt.scatter(total_proj_dist, errors)
-    plt.title("Factor error as a function of the reprojection error")
-    plt.ylabel('Factor error')
-    plt.xlabel('Reprojection error')
+    fig, ax = plt.subplots()
+    ax.plot(total_proj_dist, errors)
+    ax.set_title("Factor error as a function of the reprojection error")
+    ax.set_ylabel('Factor error')
+    ax.set_xlabel('Reprojection error')
     plt.savefig('factor_vs_reprojection_error.png')
-
-
-def keyframes_criterion(track_db):
-    """
-    Decide on a criterion to mark specific frames as keyframes - the decision can use
-    the estimated distance travelled, lapsed time, features tracked or any other
-    relevant (and available) criterion.
-    """
-    # TODO: implement
-    pass
 
 
 def get_bundle_windows(keyframes):
@@ -277,65 +275,6 @@ def get_bundle_windows(keyframes):
         bundle_windows.append(list(range(keyframes[i], keyframes[i + 1] + 1)))
 
     return bundle_windows
-
-
-def factor_graph_for_bundle(bundle_window, tracks_db):
-    """
-    Create a factor graph for a given bundle window.
-    """
-    graph = gtsam.NonlinearFactorGraph()
-    K = compute_K()
-    T_arr = np.load(T_ARR_PATH)
-    initial_estimates = gtsam.Values()
-    points, cameras = [], []
-
-    first_frame_ext_mat = T_arr[bundle_window[0]]
-    world_base_camera = fix_ext_mat(first_frame_ext_mat)  # World coordinates for transformations
-
-    # Create a pose for each camera in the bundle window
-    for frame_id in bundle_window:
-        ext_mat = T_arr[frame_id]
-        cur_ext_mat = ex3_utils.composite_transformations(world_base_camera, ext_mat)
-        cur_cam_in_world = fix_ext_mat(cur_ext_mat)
-
-        pose = gtsam.Pose3(cur_cam_in_world)
-        cam_symbol = gtsam.symbol('c', frame_id)
-        cameras.append(cam_symbol)
-        initial_estimates.insert(cam_symbol, pose)
-
-        # Add a prior factor for first camera pose
-        if frame_id == bundle_window[0]:  # Constraints for first frame
-            factor = gtsam.PriorFactorPose3(cam_symbol, pose,
-                                            gtsam.noiseModel.Diagonal.Sigmas(np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])))
-            graph.add(factor)
-
-    for track_id in tracks_db.get_track_ids(bundle_window[0]):
-        track = tracks_db.tracks[track_id]
-        last_frame_id = track.frame_ids[-1]
-        track_frames = track.get_frame_ids()
-
-        # Create a point for each track in the first keypoint frame
-        point_symbol = gtsam.symbol('q', track.get_track_id())
-        points.append(point_symbol)
-        base_stereo_frame = gtsam.StereoCamera(pose, K)  # Pose of last frame in bundle window
-        xl, xr, y = tracks_db.feature_location(last_frame_id, track_id)
-        point = gtsam.StereoPoint2(xl, xr, y)
-        p3d = base_stereo_frame.backproject(point)
-        initial_estimates.insert(point_symbol, p3d)
-
-        # Create a factor for each frame of track
-        for frame_id in bundle_window:
-            if frame_id not in track_frames:
-                continue
-            cam_symbol = gtsam.symbol('c', frame_id)
-            xl, xr, y = tracks_db.feature_location(frame_id, track_id)
-            point = gtsam.StereoPoint2(xl, xr, y)
-
-            factor = gtsam.GenericStereoFactor3D(point, gtsam.noiseModel.Isotropic.Sigma(3, 1.0), cam_symbol,
-                                                 point_symbol, K)
-            graph.add(factor)
-
-    return graph, initial_estimates, points, cameras
 
 
 def plot_view_from_above(result, cameras, points):
@@ -359,7 +298,7 @@ def plot_view_from_above(result, cameras, points):
     plt.savefig('view_from_above.png')
 
 
-def plot_view_from_above2(relative_cameras, relative_points, ground_truth_keyframes):
+def plot_view_from_above2(relative_cameras, relative_points, init_cameras, ground_truth_keyframes):
     """
     Plot a view from above (2d) of the scene, with all keyframes (left camera only) and 3D points.
     Overlay the estimated keyframes with the Ground Truth poses of the keyframes.
@@ -372,7 +311,8 @@ def plot_view_from_above2(relative_cameras, relative_points, ground_truth_keyfra
     ax.scatter(relative_cameras[:, 0], relative_cameras[:, 2], s=3, c='red', label="Keyframes", marker='x')
     ax.scatter(relative_points[:, 0], relative_points[:, 2], s=1, c='cyan', label="Points", marker='o')
     ax.scatter(ground_truth_keyframes[:, 0], ground_truth_keyframes[:, 2], s=3, c='green', marker='^',
-               label="Keyframes ground truth")
+               label="Ground Truth")
+    ax.scatter(init_cameras[:, 0], init_cameras[:, 2], s=3, c='blue', marker='x', label="Initial Estimates")
 
     ax.set_title("Left cameras, 3D points and GT Poses of keyframes as a view from above of the scene")
     # ax.set_xlim(-250, 350)
@@ -381,20 +321,23 @@ def plot_view_from_above2(relative_cameras, relative_points, ground_truth_keyfra
     plt.savefig('view_from_above2.png')
 
 
-def relative_to_absolute_poses(cameras, points):
+def relative_to_absolute_poses(cameras, points, init_cams):
     """
     Convert relative poses to absolute poses.
     """
     base_camera = cameras[0]
-    abs_points, abs_cameras = [], [base_camera]
+    base_init = init_cams[0]
+    abs_points, abs_cameras, abs_init = [], [base_camera], [base_init]
 
-    for bundle_camera, bundle_points in zip(cameras[1:], points):
+    for bundle_camera, bundle_points, bundle_init in zip(cameras[1:], points, init_cams):
         base_camera = base_camera.compose(bundle_camera)
         abs_cameras.append(base_camera)
+        base_init = base_init.compose(bundle_init)
+        abs_init.append(base_init)
         bundle_abs_points = [abs_cameras[-1].transformFrom(point) for point in bundle_points]
         abs_points.extend(bundle_abs_points)
 
-    return np.array(abs_cameras), np.array(abs_points)
+    return np.array(abs_cameras), np.array(abs_points), np.array(abs_init)
 
 
 def plot_keyframe_localization_error(keyframes_len, errors):
@@ -462,14 +405,14 @@ def run_ex5():
     """
     Runs all exercise 5 sections.
     """
-    np.random.seed(13)
+    np.random.seed(5)
     # Load tracks DB
     tracks_db = TracksDB.deserialize(DB_PATH)
 
     # q5_1(tracks_db)
-
+    #
     # q5_2(tracks_db)
-
+    #
     q5_3(tracks_db)
 
 

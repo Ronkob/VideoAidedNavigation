@@ -313,11 +313,6 @@ def create_gtsam_K():
     return K
 
 
-def fix_ext_mat(ext_mat):
-    ext_mat[:, -1] *= -1  # t
-    return ext_mat  # gtsam.Rot3(R), gtsam.Point3(t)
-
-
 def gtsam_plot_trajectory_fixed(fignum: int, values, scale: float = 1, marginals=None, title: str = "Plot Trajectory",
                                 axis_labels=("X axis", "Y axis", "Z axis"), ) -> None:
     """

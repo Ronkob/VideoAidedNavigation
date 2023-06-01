@@ -13,6 +13,7 @@ class BundleAdjustment:
         self.bundle_windows = []
         self.cameras_rel_pose = []
         self.points_rel_pose = []
+        self.init_camera_rel_pose = []
         self.tracks_db = tracks_db
         self.T_arr = T_arr
 
@@ -46,11 +47,13 @@ class BundleAdjustment:
             # Between each keyframe and its predecessor
             if not self.cameras_rel_pose:
                 self.cameras_rel_pose.append(result.atPose3(gtsam.symbol('c', 0)))
+                self.init_camera_rel_pose.append(bundle_window.initial_estimates.atPose3(gtsam.symbol('c', 0)))
             self.cameras_rel_pose.append(result.atPose3(gtsam.symbol('c', bundle_window.frames_idxs[-1])))
             self.points_rel_pose.append([result.atPoint3(point) for point in bundle_window.points])
+            self.init_camera_rel_pose.append(bundle_window.initial_estimates.atPose3(gtsam.symbol('c', bundle_window.frames_idxs[-1])))
 
     def get_relative_poses(self):
-        return self.cameras_rel_pose, self.points_rel_pose
+        return self.cameras_rel_pose, self.points_rel_pose, self.init_camera_rel_pose
 
     @staticmethod
     def create_bundle_windows(keyframes):

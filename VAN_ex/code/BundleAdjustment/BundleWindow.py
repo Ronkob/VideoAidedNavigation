@@ -1,6 +1,6 @@
 import gtsam
 import numpy as np
-from VAN_ex.code import utils
+from VAN_ex.code.Ex5 import ex5 as ex5_utils
 from VAN_ex.code.Ex3 import ex3 as ex3_utils
 
 MAX_Z = 350
@@ -13,9 +13,9 @@ class Bundle:
         self.graph = gtsam.NonlinearFactorGraph()
         self.initial_estimates = gtsam.Values()
         self.optimizer = None
-        self.result = None
         self.points = []
         self.cameras = []
+        self.result = None
 
     def get_marginals(self):
         marginals = gtsam.Marginals(self.graph, self.result)
@@ -38,22 +38,20 @@ class Bundle:
         return self.result
 
     def create_graph(self, T_arr, tracks_db):
-        K = utils.create_gtsam_K()
-        first_frame_ext_mat = T_arr[self.frames_idxs[0]]
-        world_base_camera = utils.fix_ext_mat(first_frame_ext_mat)  # World coordinates for transformations
+        K = ex5_utils.compute_K()
+        base_camera = T_arr[self.frames_idxs[0]]
 
         # Create a pose for each camera in the bundle window
         for frame_id in self.frames_idxs:
             ext_mat = T_arr[frame_id]
-            cur_ext_mat = ex3_utils.composite_transformations(world_base_camera, ext_mat)
-            cur_cam_in_world = utils.fix_ext_mat(cur_ext_mat)
+            cur_ext_mat = ex3_utils.composite_transformations(base_camera, ext_mat)
 
-            pose = gtsam.Pose3(cur_cam_in_world)
+            pose = gtsam.Pose3(ex5_utils.fix_ext_mat(cur_ext_mat))
             cam_symbol = gtsam.symbol('c', frame_id)
             self.cameras.append(cam_symbol)
             self.initial_estimates.insert(cam_symbol, pose)
 
-            # Add a prior factor for first camera pose
+            # Add a prior factor just for first camera pose
             if frame_id == self.frames_idxs[0]:  # Constraints for first frame
                 factor = gtsam.PriorFactorPose3(cam_symbol, pose, gtsam.noiseModel.Diagonal.Sigmas(
                     np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])))
@@ -64,8 +62,8 @@ class Bundle:
             last_frame_id = track.frame_ids[-1]
             track_frames = track.get_frame_ids()
 
-            if track.frame_ids[-1] < self.frames_idxs[-1]:
-                continue
+            # if track.frame_ids[-1] < self.frames_idxs[-1]:
+            #     continue
 
             # Create a point for each track in the first keypoint frame
             base_stereo_frame = gtsam.StereoCamera(pose, K)  # Pose of last frame in bundle window
