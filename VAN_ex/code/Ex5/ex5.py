@@ -329,7 +329,7 @@ def relative_to_absolute_poses(cameras, points, init_cams):
     base_init = init_cams[0]
     abs_points, abs_cameras, abs_init = [], [base_camera], [base_init]
 
-    for bundle_camera, bundle_points, bundle_init in zip(cameras[1:], points, init_cams):
+    for bundle_camera, bundle_points, bundle_init in zip(cameras[1:], points, init_cams[1:]):
         base_camera = base_camera.compose(bundle_camera)
         abs_cameras.append(base_camera)
         base_init = base_init.compose(bundle_init)
