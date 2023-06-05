@@ -129,7 +129,14 @@ def q5_3(tracks_db, T_arr):
     fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=cameras_trajectory, fig=fig, label="BA", color='pink')
     legend_element = plt.legend(loc='upper left', fontsize=12)
     fig.gca().add_artist(legend_element)
+    fig.savefig('q5_3 trajectory.png')
     fig.show()
+    plt.clf()
+
+    # For the last bundle window print the final position of the first frame of that bundle and the anchoring factor
+    # final error. Why is that the error?
+    print('Final error = {}'.format(bundle_adjustment.bundle_windows[-1].get_factor_error(initial=False)))
+    print('Final position of the first frame = {}'.format(bundle_adjustment.bundle_windows[-1].get_from_optimized(obj='camera_poses')[0]))
 
     euclidean_distance = calculate_euclidian_dist(cameras_trajectory, ground_truth_keyframes)
     plot_keyframe_localization_error(len(bundle_adjustment.keyframes), euclidean_distance)
@@ -162,7 +169,9 @@ def plot_scene_3d(result, init_view=None, points=None, title="3d scene"):
     ax.view_init(**init_view)
     # set the title of the plot
     fig.suptitle(title, fontsize=16, fontweight='bold')
-    fig.savefig("q5_2 " + title + '.png')  # fig.show()
+    fig.savefig("q5_2 " + title + '.png')
+    # fig.show()
+    plt.clf()
 
 
 # a function that plots the projection of the points in the worlds coordinate system
@@ -319,6 +328,7 @@ def triangulate_and_project(track, tracks_db):
 
     return left_proj, right_proj, initial_estimates, factors
 
+
 def fix_ext_mat(ext_mat):
     """
     Fix the extrinsic matrix to be in the correct format for gtsam.
@@ -386,6 +396,7 @@ def plot_factor_vs_reprojection_error(errors, total_proj_dist):
     ax.set_xlabel('Reprojection error')
     plt.savefig('factor_vs_reprojection_error.png')
 
+
 def plot_keyframe_localization_error(keyframes_len, errors):
     """
     Present the keyframe localization error in meters (location difference only - Euclidean distance) over time.
@@ -442,8 +453,8 @@ def run_ex5():
     T_arr = np.load(T_ARR_PATH)
     rel_t_arr = ex3_utils.calculate_relative_transformations(T_arr)
 
-    q5_1(tracks_db, rel_t_arr)
-    q5_2(tracks_db, rel_t_arr)
+    # q5_1(tracks_db, rel_t_arr)
+    # q5_2(tracks_db, rel_t_arr)
     q5_3(tracks_db, rel_t_arr)
 
 
