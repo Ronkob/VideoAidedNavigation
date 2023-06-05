@@ -115,58 +115,58 @@ class Bundle:
             # Add factor to the graph
             self.graph.add(factor)
 
-    def create_graph(self, T_arr, tracks_db):
-        K = ex5_utils.compute_K()
-        base_camera = T_arr[self.frames_idxs[0]]
-
-        # Create a pose for each camera in the bundle window
-        for frame_id in self.frames_idxs:
-            ext_mat = T_arr[frame_id]
-            cur_ext_mat = ex3_utils.composite_transformations(base_camera, ext_mat)
-
-            pose = gtsam.Pose3(ex5_utils.fix_ext_mat(cur_ext_mat))
-            cam_symbol = gtsam.symbol('c', frame_id)
-            self.cameras.append(cam_symbol)
-            self.initial_estimates.insert(cam_symbol, pose)
-
-            # Add a prior factor just for first camera pose
-            if frame_id == self.frames_idxs[0]:  # Constraints for first frame
-                factor = gtsam.PriorFactorPose3(cam_symbol, pose, gtsam.noiseModel.Diagonal.Sigmas(
-                    np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])))
-                self.graph.add(factor)
-
-        for track_id in tracks_db.get_track_ids(self.frames_idxs[0]):
-            track = tracks_db.tracks[track_id]
-            last_frame_id = track.frame_ids[-1]
-            track_frames = track.get_frame_ids()
-
-            # if track.frame_ids[-1] < self.frames_idxs[-1]:
-            #     continue
-
-            # Create a point for each track in the first keypoint frame
-            base_stereo_frame = gtsam.StereoCamera(pose, K)  # Pose of last frame in bundle window
-            xl, xr, y = tracks_db.feature_location(last_frame_id, track_id)
-            point = gtsam.StereoPoint2(xl, xr, y)
-            p3d = base_stereo_frame.backproject(point)
-
-            if p3d[2] < 0 or p3d[2] > MAX_Z:  # Threshold for far points
-                continue
-
-            point_symbol = gtsam.symbol('q', track.get_track_id())
-            self.points.append(point_symbol)
-            self.initial_estimates.insert(point_symbol, p3d)
-
-            # Create a factor for each frame of track
-            for frame_id in self.frames_idxs:
-                if frame_id not in track_frames:
-                    continue
-                cam_symbol = gtsam.symbol('c', frame_id)
-                xl, xr, y = tracks_db.feature_location(frame_id, track_id)
-                point = gtsam.StereoPoint2(xl, xr, y)
-
-                factor = gtsam.GenericStereoFactor3D(point, gtsam.noiseModel.Isotropic.Sigma(3, 1.0), cam_symbol,
-                                                     point_symbol, K)
-                self.graph.add(factor)
+    # def create_graph(self, T_arr, tracks_db):
+    #     K = ex5_utils.compute_K()
+    #     base_camera = T_arr[self.frames_idxs[0]]
+    #
+    #     # Create a pose for each camera in the bundle window
+    #     for frame_id in self.frames_idxs:
+    #         ext_mat = T_arr[frame_id]
+    #         cur_ext_mat = ex3_utils.composite_transformations(base_camera, ext_mat)
+    #
+    #         pose = gtsam.Pose3(ex5_utils.fix_ext_mat(cur_ext_mat))
+    #         cam_symbol = gtsam.symbol('c', frame_id)
+    #         self.cameras.append(cam_symbol)
+    #         self.initial_estimates.insert(cam_symbol, pose)
+    #
+    #         # Add a prior factor just for first camera pose
+    #         if frame_id == self.frames_idxs[0]:  # Constraints for first frame
+    #             factor = gtsam.PriorFactorPose3(cam_symbol, pose, gtsam.noiseModel.Diagonal.Sigmas(
+    #                 np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])))
+    #             self.graph.add(factor)
+    #
+    #     for track_id in tracks_db.get_track_ids(self.frames_idxs[0]):
+    #         track = tracks_db.tracks[track_id]
+    #         last_frame_id = track.frame_ids[-1]
+    #         track_frames = track.get_frame_ids()
+    #
+    #         # if track.frame_ids[-1] < self.frames_idxs[-1]:
+    #         #     continue
+    #
+    #         # Create a point for each track in the first keypoint frame
+    #         base_stereo_frame = gtsam.StereoCamera(pose, K)  # Pose of last frame in bundle window
+    #         xl, xr, y = tracks_db.feature_location(last_frame_id, track_id)
+    #         point = gtsam.StereoPoint2(xl, xr, y)
+    #         p3d = base_stereo_frame.backproject(point)
+    #
+    #         if p3d[2] < 0 or p3d[2] > MAX_Z:  # Threshold for far points
+    #             continue
+    #
+    #         point_symbol = gtsam.symbol('q', track.get_track_id())
+    #         self.points.append(point_symbol)
+    #         self.initial_estimates.insert(point_symbol, p3d)
+    #
+    #         # Create a factor for each frame of track
+    #         for frame_id in self.frames_idxs:
+    #             if frame_id not in track_frames:
+    #                 continue
+    #             cam_symbol = gtsam.symbol('c', frame_id)
+    #             xl, xr, y = tracks_db.feature_location(frame_id, track_id)
+    #             point = gtsam.StereoPoint2(xl, xr, y)
+    #
+    #             factor = gtsam.GenericStereoFactor3D(point, gtsam.noiseModel.Isotropic.Sigma(3, 1.0), cam_symbol,
+    #                                                  point_symbol, K)
+    #             self.graph.add(factor)
 
     def get_from_optimized(self, obj:str):
         if obj == 'values':

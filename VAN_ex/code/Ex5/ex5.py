@@ -442,9 +442,9 @@ def run_ex5():
     T_arr = np.load(T_ARR_PATH)
     rel_t_arr = ex3_utils.calculate_relative_transformations(T_arr)
 
-    # q5_1(tracks_db, rel_t_arr)
-    #
-    q5_2(tracks_db, rel_t_arr)  # # q5_3(tracks_db, rel_t_arr)
+    q5_1(tracks_db, rel_t_arr)
+    q5_2(tracks_db, rel_t_arr)
+    q5_3(tracks_db, rel_t_arr)
 
 
 def main():
