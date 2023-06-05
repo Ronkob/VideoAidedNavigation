@@ -1,6 +1,7 @@
 import os
 import gtsam
 from gtsam.utils import plot as gtsam_plot
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -30,13 +31,17 @@ def q5_1(track_db: TracksDB, T_arr):
     # Present a graph of the reprojection error size (L2 norm) over the track’s images
     total_proj_dist, right_proj_dist, left_proj_dist = calculate_reprojection_error((left_proj, right_proj),
                                                                                     (left_locations, right_locations))
+
     fig = plot_reprojection_error(right_proj_dist, left_proj_dist, track.get_frame_ids())
 
     # Present a graph of the factor error over the track’s images.
     errors = plot_factor_error(factors, initial_estimates, track.get_frame_ids(), fig)
 
-    # Present a graph of the factor error as a function of the reprojection error.  #   #
+    # Present a graph of the factor error as a function of the re-projection error.
     plot_factor_vs_reprojection_error(errors, total_proj_dist)
+
+    # What is the factor error as a function of the reprojection error? What is the slope of the line?
+    print('The slope of the line is: {}'.format(np.polyfit(total_proj_dist, errors, 1)[0]))
 
 
 def q5_2(tracks_db, t_arr):
@@ -78,7 +83,7 @@ def q5_2(tracks_db, t_arr):
     # Present the left and right projections on both images,
     # along with the measurement.
     left_image, right_image = ex1_utils.read_images(0)
-    plot_proj_on_images(first_lproj, first_rproj, left_image, right_image)
+    # plot_proj_on_images(first_lproj, first_rproj, left_image, right_image)
 
     # Repeat this process for the final (optimized) values of c and q.
     print('Final error of random factor = {}'.format(random_factor.error(result)))
@@ -87,17 +92,14 @@ def q5_2(tracks_db, t_arr):
     p3d = bundle_window.result.atPoint3(q)
     projection = stereo_camera.project(p3d)
     left_proj, right_proj = (projection.uL(), projection.v()), (projection.uR(), projection.v())
-    plot_proj_on_images(left_proj, right_proj, left_image, right_image, before=(first_lproj, first_rproj), type='after')
+    # plot_proj_on_images(left_proj, right_proj, left_image, right_image, before=(first_lproj, first_rproj), type='after')
 
     # Plot the resulting positions of the first bundle both as a 3D graph, and as a view-from-above (2d)
     # of the scene, with all cameras and points.
-    marginals = bundle_window.get_marginals()
-    # utils.gtsam_plot_trajectory_fixed(fignum=0, values=result, )
-    # gtsam_plot_utils.set_axes_equal(fignum=0)
-    gtsam_plot_utils.plot_trajectory(0, result, marginals=marginals, title="5_2 plot_trajectory",
-                                     save_file='q5_2_trajectory.png')
+    plot_scene_from_above(result)
+    plot_scene_3d(result)
 
-    plot_view_from_above(result, bundle_window.cameras, bundle_window.points)
+    # plot_view_from_above(result, bundle_window.cameras, bundle_window.points)
 
 
 def q5_3(tracks_db, T_arr):
@@ -121,13 +123,12 @@ def q5_3(tracks_db, T_arr):
     initial_est = utils.get_initial_estimation(rel_t_arr=T_arr)[bundle_adjustment.keyframes]
 
     fig, axes = plt.subplots(figsize=(6, 6))
-    fig = auxilery_plot_utils.plot_camera_trajectory(
-        camera_pos=landmarks, fig=fig, label="projected landmarks", color='grey', size=1, alpha=0.3)
+    fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=landmarks, fig=fig, label="projected landmarks",
+                                                     color='grey', size=1, alpha=0.3)
     fig = auxilery_plot_utils.plot_ground_truth_trajectory(ground_truth_keyframes, fig)
-    fig = auxilery_plot_utils.plot_camera_trajectory(
-        camera_pos=initial_est, fig=fig, label="initial estimate", color='green')
-    fig = auxilery_plot_utils.plot_camera_trajectory(
-        camera_pos=cameras_trajectory, fig=fig, label="BA", color='pink')
+    fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=initial_est, fig=fig, label="initial estimate",
+                                                     color='green')
+    fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=cameras_trajectory, fig=fig, label="BA", color='pink')
     legend_element = plt.legend(loc='upper left', fontsize=12)
     fig.gca().add_artist(legend_element)
     fig.show()
@@ -163,6 +164,35 @@ def q5_3(tracks_db, T_arr):
 
 
 # ===== Helper functions =====
+# a function that plots a scene of a certain bundle window from above
+def plot_scene_from_above(result, points=None):
+    plot_scene_3d(result, points=points, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'}, title="scene from above")
+
+
+def plot_scene_3d(result, init_view=None, points=None, camera=None, title="3d scene"):
+    if init_view is None:
+        init_view = {'azim': -15, 'elev': 200, 'vertical_axis': 'y'}
+    fig = plt.figure(num=0, figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    if points is None:
+        points = gtsam.utilities.extractPoint3(result)
+
+    for point in points:
+        gtsam_plot_utils.plot_point3_on_axes(ax, point, 'k.')
+
+    gtsam_plot_utils.plot_trajectory(0, result, scale=5)
+
+    # gtsam_plot_utils.set_axes_equal(0)
+    ax.set_zlim3d(0, 50)
+    ax.set_xlim3d(-20, 30)
+    ax.set_ylim3d(-45, 5)
+    ax.view_init(**init_view)
+    # set the title of the plot
+    fig.suptitle(title, fontsize=16, fontweight='bold')
+    fig.savefig("q5_2" + title + '.png')
+    fig.show()
+
+
 # a function that plots the projection of the points in the worlds coordinate system
 def plot_track_projection_from_above(left_projections):
     fig = plt.figure()
@@ -245,8 +275,7 @@ def triangulate_and_project_frame(track, t_arr, frame_to_triangulate=-1):
 
         # project the homogenous point on the frame
         gtsam_projected_stereo_point2 = gtsam_frame_to_triangulate.project(gtsam_p3d)
-        xl, xr, y = gtsam_projected_stereo_point2.uL(), gtsam_projected_stereo_point2.uR(), \
-            gtsam_projected_stereo_point2.v()
+        xl, xr, y = gtsam_projected_stereo_point2.uL(), gtsam_projected_stereo_point2.uR(), gtsam_projected_stereo_point2.v()
         left_projections.append([xl, y])
         right_projections.append([xr, y])
 
@@ -360,7 +389,7 @@ def plot_reprojection_error(right_proj_dist, left_proj_dist, frame_ids):
     ax.set_title("Reprojection error over track's images")
     ax.set_ylabel('Error')
     ax.set_xlabel('Frames')
-    fig.legend()
+    ax.legend()
     fig.savefig('reprojection_error.png')
     return fig
 
@@ -374,12 +403,12 @@ def plot_factor_error(factors, values, frame_ids, fig=None):
         fig, ax = plt.subplots()
     else:
         ax = fig.gca()
-
+    ax.legend_.remove()
     ax.set_title("Factor error over track's frames")
     ax.set_ylabel('Error')
     ax.set_xlabel('Frames')
     ax.plot(frame_ids, errors, label='Factor error')
-    fig.legend()
+    ax.legend(loc='upper left')
     fig.savefig('factor_error.png')
 
     return errors
@@ -543,9 +572,7 @@ def run_ex5():
 
     # q5_1(tracks_db, rel_t_arr)
     #
-    # q5_2(tracks_db, rel_t_arr)
-    #
-    q5_3(tracks_db, rel_t_arr)
+    q5_2(tracks_db, rel_t_arr)  # # q5_3(tracks_db, rel_t_arr)
 
 
 def main():
