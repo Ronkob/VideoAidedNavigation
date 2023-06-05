@@ -283,7 +283,8 @@ def estimate_iterations(p, eps):
         return 0
     else:
         return int(np.log(1 - p) / np.log(1 - (
-                    1 - eps) ** PNP_POINTS))  # print(eps, p)  # return int(np.log(1 - p) / np.log(1 - np.power(1 - eps, PNP_POINTS)))
+                1 - eps) ** PNP_POINTS))  # print(eps, p)  # return int(np.log(1 - p) / np.log(1 - np.power(1 - eps,
+        # PNP_POINTS)))
 
 
 def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers):
@@ -312,10 +313,7 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers):
         N1 += 1
         sum_outliers += (len(left1_inliers) - len(supporters_idx))
         sum_inliers += len(supporters_idx)
-        eps = min(sum_outliers / (sum_inliers + sum_outliers), 0.99)
-        # if (eps == 0):
-        #     print("eps is zero")
-
+        eps = min(sum_outliers / (sum_inliers + sum_outliers), 0.99)  # if (eps == 0):  #     print("eps is zero")
 
     # Refinement
     # best_ext_mat, best_supporters = refine_ransac(best_supporters, left1_inliers, right1_inliers, pair0_p3d, iters=1)
@@ -353,8 +351,8 @@ def track_movement_successive(idxs):
     best_ext_mat, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers)
     # plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx)
 
-    inliers = (left0_inliers[supporters_idx], right0_inliers[supporters_idx],
-               left1_inliers[supporters_idx], right1_inliers[supporters_idx])
+    inliers = (left0_inliers[supporters_idx], right0_inliers[supporters_idx], left1_inliers[supporters_idx],
+               right1_inliers[supporters_idx])
     return best_ext_mat, inliers, len(supporters_idx) / len(left0_inliers) * 100
 
 
@@ -454,12 +452,17 @@ def run_ex3():
     # Sections 3.1 - 3.5
     one_run_over_ex3([0, 1])
 
-    # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.
-    # track_movement_all_movie()
+    # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.  # track_movement_all_movie()
 
 
 def main():
-    run_ex3()
+    # run_ex3()
+    T_arr = np.load("T_arr.npy")
+    ground_truth_T_arr = get_ground_truth_transformations()
+    ground_truth_pos = calculate_camera_trajectory(ground_truth_T_arr)
+    T_arr[0] = ground_truth_T_arr[0]
+    cam_pos = calculate_camera_trajectory(calculate_relative_transformations(T_arr))
+    plot_camera_trajectory(cam_pos, ground_truth_pos)
 
 
 if __name__ == '__main__':

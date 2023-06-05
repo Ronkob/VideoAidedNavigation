@@ -9,6 +9,7 @@ import gtsam.utils.plot as gtsam_plot
 import gtsam
 from mpl_toolkits.mplot3d import Axes3D
 import VAN_ex.code.Ex2.ex2 as ex2_utils
+from VAN_ex.code.utils.projection_utils import calculate_camera_trajectory
 
 DATA_PATH = os.path.join('../..', 'dataset', 'sequences', '05')
 N_FEATURES = 500
@@ -452,10 +453,11 @@ def gtsam_plot_3d_points_fixed(fignum, values, linespec="g*", marginals=None, ti
     plt.show()
 
 
-def get_rand_track(track_len, tracks):
+def get_rand_track(track_len, tracks, seed=0):
     """
     Get a randomized track with length of at least track_len.
     """
+    np.random.seed(seed)
     track_id = np.random.choice(tracks.track_ids)
     track = tracks.tracks[track_id]
     while len(track.frame_ids) < track_len:
@@ -463,3 +465,7 @@ def get_rand_track(track_len, tracks):
         track = tracks.tracks[track_id]
     return track
 
+
+def get_initial_estimation(rel_t_arr):
+    cam_pos = calculate_camera_trajectory(rel_t_arr)
+    return cam_pos
