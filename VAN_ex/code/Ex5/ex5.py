@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex3.ex3 as ex3_utils
-from utils import utils
+from VAN_ex.code.utils import utils
 from VAN_ex.code.Ex4.ex4 import TracksDB
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.BundleAdjustment import BundleAdjustment
