@@ -83,7 +83,7 @@ def q5_2(tracks_db, t_arr):
     # Present the left and right projections on both images,
     # along with the measurement.
     left_image, right_image = ex1_utils.read_images(0)
-    # plot_proj_on_images(first_lproj, first_rproj, left_image, right_image)
+    plot_proj_on_images(first_lproj, first_rproj, left_image, right_image)
 
     # Repeat this process for the final (optimized) values of c and q.
     print('Final error of random factor = {}'.format(random_factor.error(result)))
@@ -92,14 +92,12 @@ def q5_2(tracks_db, t_arr):
     p3d = bundle_window.result.atPoint3(q)
     projection = stereo_camera.project(p3d)
     left_proj, right_proj = (projection.uL(), projection.v()), (projection.uR(), projection.v())
-    # plot_proj_on_images(left_proj, right_proj, left_image, right_image, before=(first_lproj, first_rproj), type='after')
+    plot_proj_on_images(left_proj, right_proj, left_image, right_image, before=(first_lproj, first_rproj), type='after')
 
     # Plot the resulting positions of the first bundle both as a 3D graph, and as a view-from-above (2d)
     # of the scene, with all cameras and points.
     plot_scene_from_above(result)
     plot_scene_3d(result)
-
-    # plot_view_from_above(result, bundle_window.cameras, bundle_window.points)
 
 
 def q5_3(tracks_db, T_arr):
@@ -133,32 +131,6 @@ def q5_3(tracks_db, T_arr):
     fig.gca().add_artist(legend_element)
     fig.show()
 
-    # # compute trajectory from poses
-    # fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=cameras_trajectory,
-    #                                                  ground_truth_pos=ground_truth_keyframes)
-    #
-    # # plot trajectory with points
-    # auxilery_plot_utils.plot_landmarks_and_camera_poses(landmarks=landmarks, camera_pos=cameras_trajectory,
-    #                                                     ground_truth_pos=ground_truth_keyframes, fig=fig)
-    #
-    # # plot compared to initial estimate
-    # auxilery_plot_utils.plot_initial_est_on_axs(
-    #     initial_est=utils.get_initial_estimation(rel_t_arr=T_arr)[bundle_adjustment.keyframes],
-    #     ground_truth_pos=ground_truth_keyframes, camera_pos=cameras_trajectory, landmarks=landmarks, fig=fig)
-
-    # cameras_rel_pose, points_rel_pose, init_rel_pose = bundle_adjustment.get_relative_poses()  #  # # For the last
-    # bundle window print the final position of the first frame of that bundle and  # # the anchoring factor final  #
-    # error.  # first_frame_pos = cameras_rel_pose[-2]  # print('Final position of first frame in last bundle window
-    # = {}'.format(first_frame_pos))  # print('Anchoring factor final error = {}'.format(0))  #  # # Present a view
-    # from above (2d) of the scene, with all keyframes (left camera only) and 3D points.  # # Overlay the estimated
-    # keyframes with the Ground Truth poses of the keyframes.  # ground_truth_keyframes = \  #     np.array(  #
-    # ex3_utils.calculate_camera_trajectory(ex3_utils.get_ground_truth_transformations()))[  #  #
-    # bundle_adjustment.keyframes]  #  # # Translate the relative poses to absolute poses  # abs_cameras, abs_points,
-    # init_cameras = relative_to_absolute_poses(cameras_rel_pose, points_rel_pose, init_rel_pose)  # abs_cameras =  #
-    # np.array([camera.translation() for camera in abs_cameras])  # init_cameras = np.array([camera.translation() for
-    # camera in init_cameras])  # # abs_cameras = np.array(cameras_to_locations(abs_cameras))  #  #  #
-    # plot_view_from_above2(abs_cameras, abs_points, init_cameras, ground_truth_keyframes)  #  # # Present the  #
-    # keyframe localization error in meters (location difference only - Euclidean  # # distance) over time.  #  #
     euclidean_distance = calculate_euclidian_dist(cameras_trajectory, ground_truth_keyframes)
     plot_keyframe_localization_error(len(bundle_adjustment.keyframes), euclidean_distance)
 
@@ -166,10 +138,11 @@ def q5_3(tracks_db, T_arr):
 # ===== Helper functions =====
 # a function that plots a scene of a certain bundle window from above
 def plot_scene_from_above(result, points=None):
-    plot_scene_3d(result, points=points, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'}, title="scene from above")
+    plot_scene_3d(result, points=points, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
+                  title="scene from above")
 
 
-def plot_scene_3d(result, init_view=None, points=None, camera=None, title="3d scene"):
+def plot_scene_3d(result, init_view=None, points=None, title="3d scene"):
     if init_view is None:
         init_view = {'azim': -15, 'elev': 200, 'vertical_axis': 'y'}
     fig = plt.figure(num=0, figsize=(8, 8))
@@ -189,8 +162,7 @@ def plot_scene_3d(result, init_view=None, points=None, camera=None, title="3d sc
     ax.view_init(**init_view)
     # set the title of the plot
     fig.suptitle(title, fontsize=16, fontweight='bold')
-    fig.savefig("q5_2" + title + '.png')
-    fig.show()
+    fig.savefig("q5_2 " + title + '.png')  # fig.show()
 
 
 # a function that plots the projection of the points in the worlds coordinate system
@@ -275,7 +247,8 @@ def triangulate_and_project_frame(track, t_arr, frame_to_triangulate=-1):
 
         # project the homogenous point on the frame
         gtsam_projected_stereo_point2 = gtsam_frame_to_triangulate.project(gtsam_p3d)
-        xl, xr, y = gtsam_projected_stereo_point2.uL(), gtsam_projected_stereo_point2.uR(), gtsam_projected_stereo_point2.v()
+        xl, xr, y = gtsam_projected_stereo_point2.uL(), gtsam_projected_stereo_point2.uR(), \
+            gtsam_projected_stereo_point2.v()
         left_projections.append([xl, y])
         right_projections.append([xr, y])
 
@@ -302,7 +275,7 @@ def triangulate_and_project(track, tracks_db):
     T_arr = np.load(T_ARR_PATH)
     T_arr = ex3_utils.calculate_relative_transformations(T_arr)
     initial_estimates = gtsam.Values()
-    K = compute_K()
+    K = utils.create_gtsam_K()
 
     track_frames = track.get_frame_ids()
     last_frame_id = track_frames[-1]
@@ -345,18 +318,6 @@ def triangulate_and_project(track, tracks_db):
         factors.append(factor)
 
     return left_proj, right_proj, initial_estimates, factors
-
-
-def compute_K():
-    """
-    Compute the camera matrix K from the old camera matrix and the new baseline.
-    """
-    fx, fy, skew = old_k[0, 0], old_k[1, 1], old_k[0, 1]
-    cx, cy = old_k[0, 2], old_k[1, 2]
-    baseline = m2[0, 3]  # Just like t[0]
-    K = gtsam.Cal3_S2Stereo(fx, fy, skew, cx, cy, -baseline)
-    return K
-
 
 def fix_ext_mat(ext_mat):
     """
@@ -425,81 +386,6 @@ def plot_factor_vs_reprojection_error(errors, total_proj_dist):
     ax.set_xlabel('Reprojection error')
     plt.savefig('factor_vs_reprojection_error.png')
 
-
-def get_bundle_windows(keyframes):
-    """
-    Create a list of bundle windows, where each window is a list of frame ids.
-    """
-    bundle_windows = []
-    for i in range(len(keyframes) - 1):
-        bundle_windows.append(list(range(keyframes[i], keyframes[i + 1] + 1)))
-
-    return bundle_windows
-
-
-def plot_view_from_above(result, cameras, points):
-    """
-    Plot the resulting positions as a view-from-above (2d) of the scene, with all cameras and points.
-    """
-    cameras = np.array([result.atPose3(camera).translation() for camera in cameras])
-    points = np.array([result.atPoint3(point) for point in points])
-    fig, ax = plt.subplots()
-
-    ax.scatter(cameras[:, 0], cameras[:, 2], s=1, c='red', label="Cameras")
-    ax.scatter(points[:, 0], points[:, 2], s=1, c='cyan', label="Points")
-
-    ax.set_title("Points and cameras as a view from above of the scene")
-    ax.set_xlabel('X')
-    ax.set_ylabel('Z')
-
-    ax.set_ylim([-10, 200])
-
-    plt.legend()
-    plt.savefig('view_from_above.png')
-
-
-def plot_view_from_above2(relative_cameras, relative_points, init_cameras, ground_truth_keyframes):
-    """
-    Plot a view from above (2d) of the scene, with all keyframes (left camera only) and 3D points.
-    Overlay the estimated keyframes with the Ground Truth poses of the keyframes.
-    """
-    fig, ax = plt.subplots()
-
-    # print("len of cameras", relative_cameras.shape)
-    # print("len of points", relative_points.shape)
-    # print("len of gt", ground_truth_keyframes.shape)
-    ax.scatter(relative_cameras[:, 0], relative_cameras[:, 2], s=3, c='red', label="Keyframes", marker='x')
-    ax.scatter(relative_points[:, 0], relative_points[:, 2], s=1, c='cyan', label="Points", marker='o')
-    ax.scatter(ground_truth_keyframes[:, 0], ground_truth_keyframes[:, 2], s=3, c='green', marker='^',
-               label="Ground Truth")
-    ax.scatter(init_cameras[:, 0], init_cameras[:, 2], s=3, c='blue', marker='x', label="Initial Estimates")
-
-    ax.set_title("Left cameras, 3D points and GT Poses of keyframes as a view from above of the scene")
-    # ax.set_xlim(-250, 350)
-    # ax.set_ylim(-100, 430)
-    plt.legend()
-    plt.savefig('view_from_above2.png')
-
-
-def relative_to_absolute_poses(cameras, points, init_cams):
-    """
-    Convert relative poses to absolute poses.
-    """
-    base_camera = cameras[0]
-    base_init = init_cams[0]
-    abs_points, abs_cameras, abs_init = [], [base_camera], [base_init]
-
-    for bundle_camera, bundle_points, bundle_init in zip(cameras[1:], points, init_cams[1:]):
-        base_camera = base_camera.compose(bundle_camera)
-        abs_cameras.append(base_camera)
-        base_init = base_init.compose(bundle_init)
-        abs_init.append(base_init)
-        bundle_abs_points = [abs_cameras[-1].transformFrom(point) for point in bundle_points]
-        abs_points.extend(bundle_abs_points)
-
-    return np.array(abs_cameras), np.array(abs_points), np.array(abs_init)
-
-
 def plot_keyframe_localization_error(keyframes_len, errors):
     """
     Present the keyframe localization error in meters (location difference only - Euclidean distance) over time.
@@ -541,20 +427,6 @@ def plot_proj_on_images(left_proj, right_proj, left_image, right_image, before=N
 
     plt.legend(fontsize="7")
     plt.savefig('proj_on_images_{}.png'.format(type))
-
-
-def cameras_to_locations(abs_cameras):
-    """
-    Convert cameras to locations.
-    """
-    cam_locs = []
-
-    for camera in abs_cameras:
-        R = np.array(camera.rotation().matrix())
-        t = np.array(camera.translation())
-        cam_locs.append(-R.T @ t)
-
-    return np.array(cam_locs)
 
 
 # ===== End of Helper Functions =====
