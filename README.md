@@ -39,3 +39,8 @@ In this exercise we run bundle adjustment to leverage the information across mul
 To keep the computation cost down we will run the optimization on small segments of consecutive images. We use the GTSAM optimization library to handle the mathematical details of the process.
 The result of the computation is an accurate estimation of the local trajectory of the vehicle and can be used as Visual Odometry.
 
+![image](https://github.com/Dor890/SLAM/assets/64433958/8b1c6fcb-61f1-4126-8c2d-e8214905d232)
+
+## Ex6
+
+## Ex7
