@@ -10,7 +10,7 @@ import gtsam
 from mpl_toolkits.mplot3d import Axes3D
 import VAN_ex.code.Ex2.ex2 as ex2_utils
 
-DATA_PATH = os.path.join('..', 'dataset', 'sequences', '05')
+DATA_PATH = os.path.join('../VAN_ex', 'dataset', 'sequences', '05')
 N_FEATURES = 500
 RATIO = 0.6
 DIFF = 2

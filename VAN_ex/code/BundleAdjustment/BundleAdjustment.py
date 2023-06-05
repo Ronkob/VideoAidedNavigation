@@ -1,7 +1,5 @@
 import gtsam
 import numpy as np
-from VAN_ex.code import utils
-from VAN_ex.code.Ex3 import ex3 as ex3_utils
 from VAN_ex.code.Ex4.ex4 import TracksDB
 from VAN_ex.code.BundleAdjustment import BundleWindow
 

@@ -6,9 +6,8 @@ import matplotlib.pyplot as plt
 
 import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex3.ex3 as ex3_utils
-from VAN_ex.code import utils
+from utils import utils
 from VAN_ex.code.Ex4.ex4 import TracksDB
-from VAN_ex.code.Ex4.ex4 import Track  # Don't remove
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.BundleAdjustment import BundleAdjustment
 
@@ -90,7 +89,7 @@ def q5_2(tracks_db):
     # Plot the resulting positions of the first bundle both as a 3D graph, and as a view-from-above (2d)
     # of the scene, with all cameras and points.
     marginals = bundle_window.get_marginals()
-    utils.gtsam_plot_trajectory_fixed(fignum=0, values=result,)
+    utils.gtsam_plot_trajectory_fixed(fignum=0, values=result, )
     gtsam_plot.set_axes_equal(fignum=0)
     plt.savefig('q5_2_3d.png')
 

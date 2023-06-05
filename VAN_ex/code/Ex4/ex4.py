@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 from matplotlib import animation
 
-import VAN_ex.code.utils as utils
+import utils.utils as utils
 import matplotlib.pyplot as plt
 import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex2.ex2 as ex2_utils
@@ -492,7 +492,7 @@ def run_sequence(start_frame, end_frame):
     # frames = [i for i in range(start_frame, end_frame)]
     # plot_inliers_per_frame(inliers_precent_lst, frames)  # q4.5
     db.remove_short_tracks(short=2)
-    # db.serialize(DB_PATH)
+    db.serialize(DB_PATH)
     return db
 
 
@@ -502,7 +502,7 @@ def run_ex4():
     """
     np.random.seed(4)
     tracks_db = None
-    ## tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
+    tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
     if tracks_db is None:
         tracks_db = TracksDB.deserialize(DB_PATH)
 

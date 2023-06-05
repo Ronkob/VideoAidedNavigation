@@ -1,9 +1,8 @@
 import os
-import time
 
 import cv2
 import numpy as np
-import VAN_ex.code.utils as utils
+import utils.utils as utils
 import matplotlib.pyplot as plt
 import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex2.ex2 as ex2_utils
