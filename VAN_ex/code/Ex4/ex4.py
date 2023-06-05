@@ -313,14 +313,13 @@ def get_rand_track(track_len, tracks):
 
 
 # q4.3
-def plot_random_track(tracks_db):
+def plot_random_track(track):
     """
     Randomize track, and display the feature locations on all the relevant
     images. Cut a region of 100x100 pixels (subject to image boundaries)
     around the feature from both left and right images andmark the feature
     as a dot. Present this for all images in the track.
     """
-    track = get_rand_track(TRACK_MIN_LEN, tracks_db)
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
     ax1.set_title('Left image')
     ax2.set_title('Right image')
@@ -346,7 +345,7 @@ def plot_random_track(tracks_db):
                     ax2.scatter(50 + (right_x_cor - right_x_cor_rounded), 50 + (right_y_cor - right_y_cor_rounded),
                                 color='red', marker='^'), ])
     ani = animation.ArtistAnimation(fig, ims, interval=100)
-    ani.save("track_cut_around.gif", writer="pillow", fps=5)
+    ani.save(f"track_cut_around_{track.track_id}.gif", writer="pillow", fps=5)
 
     plt.close()
     plt.clf()
@@ -502,24 +501,25 @@ def run_ex4():
     """
     np.random.seed(4)
     tracks_db = None
-    tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
+    # tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
     if tracks_db is None:
         tracks_db = TracksDB.deserialize(DB_PATH)
 
     # q4.2
-    # tracks_db.get_statistics()
+    tracks_db.get_statistics()
 
     # q4.3
-    # plot_random_track(tracks_db)
+    track = get_rand_track(10, tracks_db)
+    plot_random_track(track)
 
     # q4.4
-    # plot_connectivity_graph(tracks_db)
+    plot_connectivity_graph(tracks_db)
 
     # q4.6
-    # plot_track_length_histogram(tracks_db)
+    plot_track_length_histogram(tracks_db)
 
     # q4.7
-    # plot_reprojection_error(tracks_db)
+    plot_reprojection_error(tracks_db)
 
     # create_gif(START_FRAME, END_FRAME, tracks_db)
 
