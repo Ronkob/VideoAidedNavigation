@@ -55,7 +55,7 @@ def q5_2(tracks_db, t_arr):
     """
     keyframes = [0, 7]  # First two keyframes
     bundle_window = BundleWindow.Bundle(keyframes[0], keyframes[1])
-    bundle_window.alternate_ver_create_graph(t_arr, tracks_db)
+    bundle_window.create_graph_v2(t_arr, tracks_db)
     result = bundle_window.optimize()
 
     print('Initial error = {}'.format(bundle_window.get_factor_error(initial=True)))
@@ -116,7 +116,7 @@ def q5_3(tracks_db, T_arr):
         np.array(ex3_utils.calculate_camera_trajectory(ex3_utils.get_ground_truth_transformations()))[
             bundle_adjustment.keyframes]
 
-    cameras_trajectory = projection_utils.computed_trajectory_from_poses(cameras)
+    cameras_trajectory = projection_utils.get_trajectory_from_gtsam_poses(cameras)
     initial_est = utils.get_initial_estimation(rel_t_arr=T_arr)[bundle_adjustment.keyframes]
 
     fig, axes = plt.subplots(figsize=(6, 6))

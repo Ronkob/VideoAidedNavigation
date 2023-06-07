@@ -39,7 +39,7 @@ class Bundle:
         self.result = self.optimizer.optimize()
         return self.result
 
-    def alternate_ver_create_graph(self, T_arr, tracks_db: TracksDB):
+    def create_graph_v2(self, T_arr, tracks_db: TracksDB):
         K = utils.create_gtsam_K()
         base_camera = projection_utils.convert_ext_mat_to_world(T_arr[self.frames_idxs[0]])
 
@@ -88,29 +88,28 @@ class Bundle:
         last_left_kp = left_locations[last_frame]
         last_right_kp = right_locations[last_frame]
 
-        # Measures for triangulation
+        # coords for triangulation
         xl, xr, y = last_left_kp[0], last_right_kp[0], last_left_kp[1]
         gtsam_stereo_point2_for_triangulation = gtsam.StereoPoint2(xl, xr, y)
         gtsam_p3d = gtsam_frame_to_triangulate_from.backproject(gtsam_stereo_point2_for_triangulation)
 
-        # Add landmark symbol to "values" dictionary
+        # Add the point to the graph and the list of points
         p3d_sym = gtsam.symbol('q', track.get_track_id())
         self.points.append(p3d_sym)
         self.initial_estimates.insert(p3d_sym, gtsam_p3d)
 
         for frame_id in range(first_frame, last_frame + 1):
-            xl, xr, y = left_locations[frame_id][0], right_locations[frame_id][0], \
-                left_locations[frame_id][1]
+            xl, xr, y = left_locations[frame_id][0], right_locations[frame_id][0], left_locations[frame_id][1]
             gtsam_measurement_pt2 = gtsam.StereoPoint2(xl, xr, y)
 
             # Factor creation
             projection_cov = gtsam.noiseModel.Isotropic.Sigma(3, 1.0)
-            factor = gtsam.GenericStereoFactor3D(gtsam_measurement_pt2, projection_cov,
-                                                 gtsam.symbol('c', frame_id), p3d_sym, K)
+            factor = gtsam.GenericStereoFactor3D(gtsam_measurement_pt2, projection_cov, gtsam.symbol('c', frame_id),
+                                                 p3d_sym, K)
             # Add factor to the graph
             self.graph.add(factor)
 
-    def get_from_optimized(self, obj:str):
+    def get_from_optimized(self, obj: str):
         if obj == 'values':
             return self.result
 

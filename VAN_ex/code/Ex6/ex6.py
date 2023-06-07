@@ -22,7 +22,7 @@ def q6_1(T_arr, tracks_db):
     """
     c0, ck = 0, 7  # First two keyframes
     first_window = BundleWindow.Bundle(c0, ck)
-    first_window.alternate_ver_create_graph(T_arr, tracks_db)
+    first_window.create_graph_v2(T_arr, tracks_db)
     result = first_window.optimize()  # Estimate relative motion and uncertainty
 
     # Extract the marginal covariances of the solution

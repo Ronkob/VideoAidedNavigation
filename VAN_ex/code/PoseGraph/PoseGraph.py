@@ -32,7 +32,7 @@ class PoseGraph:
             keys = gtsam.KeyVector()
             keys.append(gtsam.symbol('c', first_kf))
             keys.append(gtsam.symbol('c', last_kf))
-            bundle.alternate_ver_create_graph(self.T_arr, self.tracks_db)
+            bundle.create_graph_v2(self.T_arr, self.tracks_db)
             bundle.optimize()
             marginals = bundle.get_marginals()
             marg_cov_mat = marginals.jointMarginalInformation(keys).at(keys[1], keys[1])

@@ -11,9 +11,7 @@ def convert_ext_mat_to_world(ext_mat):
     R = R_mat.T
     t = - R_mat.T @ t_vec
 
-    ex_cam_mat_from_cam_to_world = np.hstack((R, t.reshape(3, 1)))  # Todo: check concatenation
-
-    return ex_cam_mat_from_cam_to_world
+    return np.hstack((R, t.reshape(3, 1)))
 
 
 def composite_transformations(T1, T2):
@@ -25,17 +23,24 @@ def composite_transformations(T1, T2):
 
 
 def convert_rel_gtsam_trans_to_global(T_arr):
-    relative_T_arr = []
+    global_trans = []
     last = T_arr[0]
 
     for t in T_arr:
         last = last.compose(t)
-        relative_T_arr.append(last)
+        global_trans.append(last)
 
-    return relative_T_arr
+    return global_trans
 
 
-def convert_bundle_rel_landmark_to_global(first_cam: gtsam.Pose3, bundle_landmarks: List[gtsam.Point3]):
+def convert_from_bundel_to_world(first_cam: gtsam.Pose3, bundle_landmarks: List[gtsam.Point3]):
+    """
+    # convert the points to world coordinates, from already "world" coordinates, but they are according to the first
+    camera of the bundle
+    :param first_cam:
+    :param bundle_landmarks:
+    :return:
+    """
     global_landmarks = []
     for landmark in bundle_landmarks:
         global_landmark = first_cam.transformFrom(landmark)
@@ -45,15 +50,22 @@ def convert_bundle_rel_landmark_to_global(first_cam: gtsam.Pose3, bundle_landmar
 
 
 def convert_rel_landmarks_to_global(rel_cameras, rel_landmarks):
+    """
+    convert the points to world coordinates, from already "world" coordinates, but they are according to the first
+    camera of every bundle
+    :param rel_cameras:
+    :param rel_landmarks:
+    :return:
+    """
     global_landmarks = []
     for bundle_camera, bundle_landmarks in zip(rel_cameras, rel_landmarks):
-        bundle_global_landmarks = convert_bundle_rel_landmark_to_global(bundle_camera, bundle_landmarks)
+        bundle_global_landmarks = convert_from_bundel_to_world(bundle_camera, bundle_landmarks)
         global_landmarks += bundle_global_landmarks
 
     return np.array(global_landmarks)
 
 
-def computed_trajectory_from_poses(poses: List[gtsam.Pose3]):
+def get_trajectory_from_gtsam_poses(poses: List[gtsam.Pose3]):
     trajectory = []
     for pose in poses:
         trajectory.append(pose.translation())

@@ -41,7 +41,7 @@ class BundleAdjustment:
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
         for bundle_window in self.bundle_windows:
             print("Optimizing bundle window: ", bundle_window.frames_idxs)
-            bundle_window.alternate_ver_create_graph(self.T_arr, self.tracks_db)
+            bundle_window.create_graph_v2(self.T_arr, self.tracks_db)
             result = bundle_window.optimize()
 
             # Between each keyframe and its predecessor
@@ -59,7 +59,7 @@ class BundleAdjustment:
         cameras = [gtsam.Pose3()]
         points = []
         for bundle_window in self.bundle_windows:
-            bundle_window.alternate_ver_create_graph(self.T_arr, self.tracks_db)
+            bundle_window.create_graph_v2(self.T_arr, self.tracks_db)
             bundle_window.optimize()
             cameras.append(bundle_window.get_from_optimized(obj='camera_p3d'))
             points.append(bundle_window.get_from_optimized(obj='landmarks'))
