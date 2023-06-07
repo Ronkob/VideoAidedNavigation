@@ -12,7 +12,7 @@ from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils
 from VAN_ex.code.Ex4.ex4 import TracksDB, Track
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.BundleAdjustment import BundleAdjustment
-from VAN_ex.code.utils import gtsam_plot_utils
+# from VAN_ex.code.utils import gtsam_plot_utils
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
