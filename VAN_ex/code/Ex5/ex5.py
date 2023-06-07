@@ -8,10 +8,11 @@ import matplotlib.pyplot as plt
 import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex3.ex3 as ex3_utils
 import VAN_ex.code.Ex4.ex4 as ex4_utils
-from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils
+from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils, gtsam_plot_utils
 from VAN_ex.code.Ex4.ex4 import TracksDB, Track
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.BundleAdjustment import BundleAdjustment
+
 # from VAN_ex.code.utils import gtsam_plot_utils
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
@@ -25,8 +26,8 @@ def q5_1(track_db: TracksDB):
     left_locations, right_locations = track.get_left_kp(), track.get_right_kp()
 
     # Present a graph of the reprojection error size (L2 norm) over the track’s images
-    total_proj_dist, right_proj_dist, left_proj_dist = \
-        calculate_reprojection_error((left_proj, right_proj),(left_locations, right_locations))
+    total_proj_dist, right_proj_dist, left_proj_dist = calculate_reprojection_error((left_proj, right_proj),
+                                                                                    (left_locations, right_locations))
 
     fig = plot_reprojection_error(right_proj_dist, left_proj_dist, track.get_frame_ids())
 
@@ -141,6 +142,7 @@ def q5_3(tracks_db, T_arr):
     euclidean_distance = calculate_euclidian_dist(cameras_trajectory, ground_truth_keyframes)
     plot_keyframe_localization_error(len(bundle_adjustment.keyframes), euclidean_distance)
 
+
 # ===== Helper functions =====
 
 
@@ -190,90 +192,6 @@ def plot_track_projection_from_above(left_projections):
     ax.set_ylabel('y')
     ax.scatter(np.array(left_projections)[:, 0], np.array(left_projections)[:, 1])
     plt.show()
-
-
-def triangulate_and_project_frame(track, t_arr, frame_to_triangulate=-1):
-    """
-    Triangulate a 3d point in global coordinates from the last frame of the
-    track, and project this point to all the frames of the track (both left and right cameras).
-
-    1. Triangulate a point from the frame to global
-    2. Project this point to all frames in the track
-    3. Compute projection error
-
-    :param track: Track object
-    :param t_arr: np.array of ext_matrices, [R, t]
-    :param frame_to_triangulate: the frame, defaults to last frame
-    :return: None
-    """
-    factors = []
-    values = gtsam.Values()
-
-    # Get necessary data
-    left_locations = track.get_left_kp()
-    right_locations = track.get_right_kp()
-
-    frame_idx_to_triangulate = track.get_frame_ids()[frame_to_triangulate]
-    last_frame_ext_mat = t_arr[frame_idx_to_triangulate]
-
-    last_left_locations = left_locations[frame_idx_to_triangulate]
-    last_right_locations = right_locations[frame_idx_to_triangulate]
-
-    # Triangulation data
-    gtsam_calib_mat = utils.create_gtsam_K()
-
-    first_frame_cam_to_world_mat = projection_utils.convert_ext_mat_to_world(last_frame_ext_mat)
-    rel_cam_transformation_first_frame = projection_utils.composite_transformations(first_frame_cam_to_world_mat,
-                                                                                    t_arr[frame_idx_to_triangulate])
-
-    gtsam_camera_pose = projection_utils.convert_ext_mat_to_world(rel_cam_transformation_first_frame)
-    gtsam_left_cam_pose = gtsam.Pose3(gtsam_camera_pose)
-
-    # Create gtsam StereoCamera object
-    gtsam_frame_to_triangulate = gtsam.StereoCamera(gtsam_left_cam_pose, gtsam_calib_mat)
-
-    # First try
-    xl, xr, y = last_left_locations[0], last_right_locations[0], last_left_locations[1]
-    gtsam_q_for_triangulation = gtsam.StereoPoint2(xl, xr, y)
-    gtsam_p3d = gtsam_frame_to_triangulate.backproject(gtsam_q_for_triangulation)
-
-    # Define symbols for gtsam calculations
-    p3d_sym = gtsam.symbol("q", 0)
-    values.insert(p3d_sym, gtsam_p3d)
-
-    left_projections = []
-    right_projections = []
-
-    # For each frame in track, do the procedure above - update values and create factors
-    for frame_idx in track.get_frame_ids():
-        # Update values
-        gtsam_left_cam_pose_sym = gtsam.symbol("c", frame_idx)
-        rel_cam_transformation_first_frame = projection_utils.composite_transformations(first_frame_cam_to_world_mat,
-                                                                                        t_arr[frame_idx])
-        gtsam_camera_pose = projection_utils.convert_ext_mat_to_world(rel_cam_transformation_first_frame)
-        gtsam_left_cam_pose = gtsam.Pose3(gtsam_camera_pose)
-        values.insert(gtsam_left_cam_pose_sym, gtsam_left_cam_pose)
-
-        # Measure projection error
-        measure_xl, measure_xr, measure_y = left_locations[frame_idx][0], right_locations[frame_idx][0], \
-            left_locations[frame_idx][1]
-        gtsam_measurement_pt2 = gtsam.StereoPoint2(measure_xl, measure_xr, measure_y)
-        gtsam_frame_to_triangulate = gtsam.StereoCamera(gtsam_left_cam_pose, gtsam_calib_mat)
-
-        # Project the homogenous point on the frame
-        gtsam_projected_stereo_point2 = gtsam_frame_to_triangulate.project(gtsam_p3d)
-        xl, xr, y = gtsam_projected_stereo_point2.uL(), gtsam_projected_stereo_point2.uR(), \
-            gtsam_projected_stereo_point2.v()
-        left_projections.append([xl, y])
-        right_projections.append([xr, y])
-
-        # Factor creation
-        projection_uncertainty = gtsam.noiseModel.Isotropic.Sigma(3, 1.0)
-        factor = gtsam.GenericStereoFactor3D(gtsam_measurement_pt2, projection_uncertainty,
-                                             gtsam.symbol("c", frame_idx), p3d_sym, gtsam_calib_mat)
-        factors.append(factor)
-
-    return factors, values, left_projections, right_projections
 
 
 def triangulate_and_project(track, tracks_db):
@@ -334,6 +252,89 @@ def triangulate_and_project(track, tracks_db):
 
     return left_proj, right_proj, initial_estimates, factors
 
+
+# def triangulate_and_project_frame(track, t_arr, frame_to_triangulate=-1):
+#     """
+#     Triangulate a 3d point in global coordinates from the last frame of the
+#     track, and project this point to all the frames of the track (both left and right cameras).
+#
+#     1. Triangulate a point from the frame to global
+#     2. Project this point to all frames in the track
+#     3. Compute projection error
+#
+#     :param track: Track object
+#     :param t_arr: np.array of ext_matrices, [R, t]
+#     :param frame_to_triangulate: the frame, defaults to last frame
+#     :return: None
+#     """
+#     factors = []
+#     values = gtsam.Values()
+#
+#     # Get necessary data
+#     left_locations = track.get_left_kp()
+#     right_locations = track.get_right_kp()
+#
+#     frame_idx_to_triangulate = track.get_frame_ids()[frame_to_triangulate]
+#     last_frame_ext_mat = t_arr[frame_idx_to_triangulate]
+#
+#     last_left_locations = left_locations[frame_idx_to_triangulate]
+#     last_right_locations = right_locations[frame_idx_to_triangulate]
+#
+#     # Triangulation data
+#     gtsam_calib_mat = utils.create_gtsam_K()
+#
+#     first_frame_cam_to_world_mat = projection_utils.convert_ext_mat_to_world(last_frame_ext_mat)
+#     rel_cam_transformation_first_frame = projection_utils.composite_transformations(first_frame_cam_to_world_mat,
+#                                                                                     t_arr[frame_idx_to_triangulate])
+#
+#     gtsam_camera_pose = projection_utils.convert_ext_mat_to_world(rel_cam_transformation_first_frame)
+#     gtsam_left_cam_pose = gtsam.Pose3(gtsam_camera_pose)
+#
+#     # Create gtsam StereoCamera object
+#     gtsam_frame_to_triangulate = gtsam.StereoCamera(gtsam_left_cam_pose, gtsam_calib_mat)
+#
+#     # First try
+#     xl, xr, y = last_left_locations[0], last_right_locations[0], last_left_locations[1]
+#     gtsam_q_for_triangulation = gtsam.StereoPoint2(xl, xr, y)
+#     gtsam_p3d = gtsam_frame_to_triangulate.backproject(gtsam_q_for_triangulation)
+#
+#     # Define symbols for gtsam calculations
+#     p3d_sym = gtsam.symbol("q", 0)
+#     values.insert(p3d_sym, gtsam_p3d)
+#
+#     left_projections = []
+#     right_projections = []
+#
+#     # For each frame in track, do the procedure above - update values and create factors
+#     for frame_idx in track.get_frame_ids():
+#         # Update values
+#         gtsam_left_cam_pose_sym = gtsam.symbol("c", frame_idx)
+#         rel_cam_transformation_first_frame = projection_utils.composite_transformations(first_frame_cam_to_world_mat,
+#                                                                                         t_arr[frame_idx])
+#         gtsam_camera_pose = projection_utils.convert_ext_mat_to_world(rel_cam_transformation_first_frame)
+#         gtsam_left_cam_pose = gtsam.Pose3(gtsam_camera_pose)
+#         values.insert(gtsam_left_cam_pose_sym, gtsam_left_cam_pose)
+#
+#         # Measure projection error
+#         measure_xl, measure_xr, measure_y = left_locations[frame_idx][0], right_locations[frame_idx][0], \
+#             left_locations[frame_idx][1]
+#         gtsam_measurement_pt2 = gtsam.StereoPoint2(measure_xl, measure_xr, measure_y)
+#         gtsam_frame_to_triangulate = gtsam.StereoCamera(gtsam_left_cam_pose, gtsam_calib_mat)
+#
+#         # Project the homogenous point on the frame
+#         gtsam_projected_stereo_point2 = gtsam_frame_to_triangulate.project(gtsam_p3d)
+#         xl, xr, y = gtsam_projected_stereo_point2.uL(), gtsam_projected_stereo_point2.uR(), \
+#             gtsam_projected_stereo_point2.v()
+#         left_projections.append([xl, y])
+#         right_projections.append([xr, y])
+#
+#         # Factor creation
+#         projection_uncertainty = gtsam.noiseModel.Isotropic.Sigma(3, 1.0)
+#         factor = gtsam.GenericStereoFactor3D(gtsam_measurement_pt2, projection_uncertainty,
+#                                              gtsam.symbol("c", frame_idx), p3d_sym, gtsam_calib_mat)
+#         factors.append(factor)
+#
+#     return factors, values, left_projections, right_projections
 
 def fix_ext_mat(ext_mat):
     """
@@ -461,8 +462,8 @@ def run_ex5():
     rel_t_arr = ex3_utils.calculate_relative_transformations(T_arr)
 
     q5_1(tracks_db)
-    # q5_2(tracks_db, rel_t_arr)
-    # q5_3(tracks_db, rel_t_arr)
+    q5_2(tracks_db, rel_t_arr)
+    q5_3(tracks_db, rel_t_arr)
 
 
 def main():
