@@ -19,18 +19,14 @@ T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
 old_k, m1, m2 = ex3_utils.k, ex3_utils.m1, ex3_utils.m2
 
 
-def q5_1(track_db: TracksDB, T_arr):
-    track = utils.get_rand_track(10, track_db, seed=0)
-    # track = track_db.tracks[12]
-    # ex4_utils.plot_random_track(track)
-    # factors, initial_estimates, left_proj, right_proj = triangulate_and_project_frame(track, T_arr)
-    # plot_track_projection_from_above(left_projections=left_proj)
+def q5_1(track_db: TracksDB):
+    track = utils.get_rand_track(10, track_db, seed=5)
     left_proj, right_proj, initial_estimates, factors = triangulate_and_project(track, track_db)
     left_locations, right_locations = track.get_left_kp(), track.get_right_kp()
 
     # Present a graph of the reprojection error size (L2 norm) over the track’s images
-    total_proj_dist, right_proj_dist, left_proj_dist = calculate_reprojection_error((left_proj, right_proj),
-                                                                                    (left_locations, right_locations))
+    total_proj_dist, right_proj_dist, left_proj_dist = \
+        calculate_reprojection_error((left_proj, right_proj),(left_locations, right_locations))
 
     fig = plot_reprojection_error(right_proj_dist, left_proj_dist, track.get_frame_ids())
 
@@ -67,6 +63,9 @@ def q5_2(tracks_db, t_arr):
 
     # Pick a projection factor between frame c and 3d point q.
     random_factor = bundle_window.graph.at(3)
+    p2d = random_factor.measured()
+    xl, xr, y = p2d.uL(), p2d.uR(), p2d.v()
+    left_point, right_point = (xl, y), (xr, y)
 
     # Print its error for the initial values of c and q.
     print('Initial error of random factor = {}'.format(random_factor.error(bundle_window.initial_estimates)))
@@ -83,7 +82,7 @@ def q5_2(tracks_db, t_arr):
     # Present the left and right projections on both images,
     # along with the measurement.
     left_image, right_image = ex1_utils.read_images(0)
-    plot_proj_on_images(first_lproj, first_rproj, left_image, right_image)
+    plot_proj_on_images(first_lproj, first_rproj, left_point, right_point, left_image, right_image, 'before')
 
     # Repeat this process for the final (optimized) values of c and q.
     print('Final error of random factor = {}'.format(random_factor.error(result)))
@@ -92,7 +91,7 @@ def q5_2(tracks_db, t_arr):
     p3d = bundle_window.result.atPoint3(q)
     projection = stereo_camera.project(p3d)
     left_proj, right_proj = (projection.uL(), projection.v()), (projection.uR(), projection.v())
-    plot_proj_on_images(left_proj, right_proj, left_image, right_image, before=(first_lproj, first_rproj), type='after')
+    plot_proj_on_images(left_proj, right_proj, left_point, right_point, left_image, right_image, 'after')
 
     # Plot the resulting positions of the first bundle both as a 3D graph, and as a view-from-above (2d)
     # of the scene, with all cameras and points.
@@ -135,21 +134,28 @@ def q5_3(tracks_db, T_arr):
 
     # For the last bundle window print the final position of the first frame of that bundle and the anchoring factor
     # final error. Why is that the error?
-    print('Final error = {}'.format(bundle_adjustment.bundle_windows[-1].get_factor_error(initial=False)))
-    print('Final position of the first frame = {}'.format(bundle_adjustment.bundle_windows[-1].get_from_optimized(obj='camera_poses')[0]))
+    last_bundle = bundle_adjustment.bundle_windows[-1]
+    print('Final error = {}'.format(last_bundle.prior_factor.error(last_bundle.result)))
+    print('Final position of the first frame = {}'.format(last_bundle.get_from_optimized(obj='camera_poses')[0]))
 
     euclidean_distance = calculate_euclidian_dist(cameras_trajectory, ground_truth_keyframes)
     plot_keyframe_localization_error(len(bundle_adjustment.keyframes), euclidean_distance)
 
-
 # ===== Helper functions =====
-# a function that plots a scene of a certain bundle window from above
+
+
 def plot_scene_from_above(result, points=None):
+    """
+    Function that plots a scene of a certain bundle window from above.
+    """
     plot_scene_3d(result, points=points, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
                   title="scene from above")
 
 
 def plot_scene_3d(result, init_view=None, points=None, title="3d scene"):
+    """
+    Function that plots a scene of a certain bundle window in 3D.
+    """
     if init_view is None:
         init_view = {'azim': -15, 'elev': 200, 'vertical_axis': 'y'}
     fig = plt.figure(num=0, figsize=(8, 8))
@@ -161,21 +167,22 @@ def plot_scene_3d(result, init_view=None, points=None, title="3d scene"):
         gtsam_plot_utils.plot_point3_on_axes(ax, point, 'k.')
 
     gtsam_plot_utils.plot_trajectory(0, result, scale=5)
+    gtsam_plot_utils.set_axes_equal(0)
 
-    # gtsam_plot_utils.set_axes_equal(0)
     ax.set_zlim3d(0, 50)
     ax.set_xlim3d(-20, 30)
     ax.set_ylim3d(-45, 5)
     ax.view_init(**init_view)
-    # set the title of the plot
     fig.suptitle(title, fontsize=16, fontweight='bold')
     fig.savefig("q5_2 " + title + '.png')
     # fig.show()
     plt.clf()
 
 
-# a function that plots the projection of the points in the worlds coordinate system
 def plot_track_projection_from_above(left_projections):
+    """
+    Function that plots the projection of the points in the worlds coordinate system.
+    """
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.set_title('Projection of the track in the world coordinate system')
@@ -187,8 +194,8 @@ def plot_track_projection_from_above(left_projections):
 
 def triangulate_and_project_frame(track, t_arr, frame_to_triangulate=-1):
     """
-    @brief triangulate a 3d point in global coordinates from the last frame of the track, and project this point to
-    all the frames of the track (both left and right cameras).
+    Triangulate a 3d point in global coordinates from the last frame of the
+    track, and project this point to all the frames of the track (both left and right cameras).
 
     1. Triangulate a point from the frame to global
     2. Project this point to all frames in the track
@@ -199,11 +206,10 @@ def triangulate_and_project_frame(track, t_arr, frame_to_triangulate=-1):
     :param frame_to_triangulate: the frame, defaults to last frame
     :return: None
     """
-
     factors = []
     values = gtsam.Values()
 
-    # get necessary data
+    # Get necessary data
     left_locations = track.get_left_kp()
     right_locations = track.get_right_kp()
 
@@ -213,7 +219,7 @@ def triangulate_and_project_frame(track, t_arr, frame_to_triangulate=-1):
     last_left_locations = left_locations[frame_idx_to_triangulate]
     last_right_locations = right_locations[frame_idx_to_triangulate]
 
-    # triangulation data
+    # Triangulation data
     gtsam_calib_mat = utils.create_gtsam_K()
 
     first_frame_cam_to_world_mat = projection_utils.convert_ext_mat_to_world(last_frame_ext_mat)
@@ -223,24 +229,24 @@ def triangulate_and_project_frame(track, t_arr, frame_to_triangulate=-1):
     gtsam_camera_pose = projection_utils.convert_ext_mat_to_world(rel_cam_transformation_first_frame)
     gtsam_left_cam_pose = gtsam.Pose3(gtsam_camera_pose)
 
-    # create gtsam StereoCamera object
+    # Create gtsam StereoCamera object
     gtsam_frame_to_triangulate = gtsam.StereoCamera(gtsam_left_cam_pose, gtsam_calib_mat)
 
-    # first try
+    # First try
     xl, xr, y = last_left_locations[0], last_right_locations[0], last_left_locations[1]
     gtsam_q_for_triangulation = gtsam.StereoPoint2(xl, xr, y)
     gtsam_p3d = gtsam_frame_to_triangulate.backproject(gtsam_q_for_triangulation)
 
-    # define symbols for gtsam calculations
+    # Define symbols for gtsam calculations
     p3d_sym = gtsam.symbol("q", 0)
     values.insert(p3d_sym, gtsam_p3d)
 
     left_projections = []
     right_projections = []
 
-    # for each frame in track, do the procedure above - update values and create factors
+    # For each frame in track, do the procedure above - update values and create factors
     for frame_idx in track.get_frame_ids():
-        # update values
+        # Update values
         gtsam_left_cam_pose_sym = gtsam.symbol("c", frame_idx)
         rel_cam_transformation_first_frame = projection_utils.composite_transformations(first_frame_cam_to_world_mat,
                                                                                         t_arr[frame_idx])
@@ -248,13 +254,13 @@ def triangulate_and_project_frame(track, t_arr, frame_to_triangulate=-1):
         gtsam_left_cam_pose = gtsam.Pose3(gtsam_camera_pose)
         values.insert(gtsam_left_cam_pose_sym, gtsam_left_cam_pose)
 
-        # measure projection error
+        # Measure projection error
         measure_xl, measure_xr, measure_y = left_locations[frame_idx][0], right_locations[frame_idx][0], \
             left_locations[frame_idx][1]
         gtsam_measurement_pt2 = gtsam.StereoPoint2(measure_xl, measure_xr, measure_y)
         gtsam_frame_to_triangulate = gtsam.StereoCamera(gtsam_left_cam_pose, gtsam_calib_mat)
 
-        # project the homogenous point on the frame
+        # Project the homogenous point on the frame
         gtsam_projected_stereo_point2 = gtsam_frame_to_triangulate.project(gtsam_p3d)
         xl, xr, y = gtsam_projected_stereo_point2.uL(), gtsam_projected_stereo_point2.uR(), \
             gtsam_projected_stereo_point2.v()
@@ -340,6 +346,9 @@ def fix_ext_mat(ext_mat):
 
 
 def calculate_reprojection_error(projections, locations):
+    """
+    Calculate the reprojection error size (L2 norm) over the track’s images.
+    """
     left_projections, right_projections = projections
     left_locations, right_locations = locations
     left_locations, right_locations = np.array(list(left_locations.values())), np.array(list(right_locations.values()))
@@ -415,26 +424,24 @@ def calculate_euclidian_dist(abs_cameras, ground_truth_cameras):
     return np.sqrt(sum_of_squared_diffs)
 
 
-def plot_proj_on_images(left_proj, right_proj, left_image, right_image, before=None, type='before'):
+def plot_proj_on_images(left_proj, right_proj, left_point, right_point, left_image, right_image, type):
     """
     Plot the projection of the 3D points on the images.
     """
     fig, ax = plt.subplots(1, 2)
     ax[0].imshow(left_image, cmap='gray')
-    ax[0].scatter(left_proj[0], left_proj[1], s=1, c='cyan', label='Point')
+    ax[0].scatter(left_proj[0], left_proj[1], s=1, c='cyan', label='Projection')
+    ax[0].scatter(left_point[0], left_point[1], s=1, c='green', label='Point')
     ax[0].set_title("Left image")
     ax[0].set_xlabel('X')
     ax[0].set_ylabel('Y')
 
     ax[1].imshow(right_image, cmap='gray')
-    ax[1].scatter(right_proj[0], right_proj[1], s=1, c='cyan', label='Point')
+    ax[1].scatter(right_proj[0], right_proj[1], s=1, c='cyan', label='Projection')
+    ax[1].scatter(right_point[0], right_point[1], s=1, c='green', label='Point')
     ax[1].set_title("Right image")
     ax[1].set_xlabel('X')
     ax[1].set_ylabel('Y')
-
-    if before:
-        ax[0].scatter(before[0][0], before[0][1], s=1, c='red', label='Before')
-        ax[1].scatter(before[1][0], before[1][1], s=1, c='red', label='Before')
 
     plt.legend(fontsize="7")
     plt.savefig('proj_on_images_{}.png'.format(type))
@@ -453,9 +460,9 @@ def run_ex5():
     T_arr = np.load(T_ARR_PATH)
     rel_t_arr = ex3_utils.calculate_relative_transformations(T_arr)
 
-    # q5_1(tracks_db, rel_t_arr)
+    q5_1(tracks_db)
     # q5_2(tracks_db, rel_t_arr)
-    q5_3(tracks_db, rel_t_arr)
+    # q5_3(tracks_db, rel_t_arr)
 
 
 def main():
