@@ -42,5 +42,13 @@ The result of the computation is an accurate estimation of the local trajectory 
 ![image](https://github.com/Dor890/SLAM/assets/64433958/8b1c6fcb-61f1-4126-8c2d-e8214905d232)
 
 ## Ex6
+Previously, We solved small Bundle Adjustment problems and used the results to calculate relative transformations between consecutive keyframes.
+These relative poses can be used as constraints for a factor graph optimization problem we call Pose The pose graph is used to keep a concise summary of the trajectory.
+It consists of the poses of some of the frames (keyframes) and the relative nonlinear pose constraints between them. Since it contains no
+reprojection constraints (only pose-pose constraints) and only a subset of the frame poses it is a very concise representation of the entire trajectory.
+In this exercise we prepare for implementing Loop Closure, by extracting relative pose constraint from Bundle optimization and building the Pose Graph.
+
+![image](https://github.com/Dor890/SLAM/assets/64433958/0814ccbd-9fdf-4a93-a69c-a0271450f175)
+
 
 ## Ex7
