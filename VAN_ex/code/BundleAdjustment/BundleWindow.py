@@ -22,7 +22,10 @@ class Bundle:
         self.result = None
 
     def get_marginals(self):
-        marginals = gtsam.Marginals(self.graph, self.result)
+        if self.result:
+            marginals = gtsam.Marginals(self.graph, self.result)
+        else:
+            marginals = gtsam.Marginals(self.graph, self.initial_estimates)
         return marginals
 
     def get_factor_error(self, initial: bool = False):
@@ -40,8 +43,6 @@ class Bundle:
         K = utils.create_gtsam_K()
         base_camera = projection_utils.convert_ext_mat_to_world(T_arr[self.frames_idxs[0]])
 
-        pose = None
-        cam_symbol = None
         tracks_in_frames = set()
 
         # Create a pose for each camera in the bundle window
@@ -59,12 +60,9 @@ class Bundle:
 
             # Add a prior factor just for first camera pose
             if frame_id == self.frames_idxs[0]:  # Constraints for first frame
-                # sigmas array: first 3 for angles second 3 for location
-                # I chose those values by assuming that theirs 1 angles uncertainty at the angles,
-                # about 30cm at the x axes, 10cm at the y axes and 1 meter at the z axes which is the moving direction
                 sigmas = np.array([(1 * np.pi / 180) ** 2] * 3 + [1e-1, 1e-2, 1.0])
-                pose_uncertainty = gtsam.noiseModel.Diagonal.Sigmas(sigmas=sigmas)
-                factor = gtsam.PriorFactorPose3(cam_symbol, pose, pose_uncertainty)
+                cov = gtsam.noiseModel.Diagonal.Sigmas(sigmas=sigmas)
+                factor = gtsam.PriorFactorPose3(cam_symbol, pose, cov)
                 self.prior_factor = factor
                 self.graph.add(factor)
 
@@ -91,8 +89,8 @@ class Bundle:
         last_right_kp = right_locations[last_frame]
 
         # Measures for triangulation
-        measure_xl, measure_xr, measure_y = last_left_kp[0], last_right_kp[0], last_left_kp[1]
-        gtsam_stereo_point2_for_triangulation = gtsam.StereoPoint2(measure_xl, measure_xr, measure_y)
+        xl, xr, y = last_left_kp[0], last_right_kp[0], last_left_kp[1]
+        gtsam_stereo_point2_for_triangulation = gtsam.StereoPoint2(xl, xr, y)
         gtsam_p3d = gtsam_frame_to_triangulate_from.backproject(gtsam_stereo_point2_for_triangulation)
 
         # Add landmark symbol to "values" dictionary
@@ -101,14 +99,13 @@ class Bundle:
         self.initial_estimates.insert(p3d_sym, gtsam_p3d)
 
         for frame_id in range(first_frame, last_frame + 1):
-            # Measurement values
-            measure_xl, measure_xr, measure_y = left_locations[frame_id][0], right_locations[frame_id][0], \
+            xl, xr, y = left_locations[frame_id][0], right_locations[frame_id][0], \
                 left_locations[frame_id][1]
-            gtsam_measurement_pt2 = gtsam.StereoPoint2(measure_xl, measure_xr, measure_y)
+            gtsam_measurement_pt2 = gtsam.StereoPoint2(xl, xr, y)
 
             # Factor creation
-            projection_uncertainty = gtsam.noiseModel.Isotropic.Sigma(3, 1.0)
-            factor = gtsam.GenericStereoFactor3D(gtsam_measurement_pt2, projection_uncertainty,
+            projection_cov = gtsam.noiseModel.Isotropic.Sigma(3, 1.0)
+            factor = gtsam.GenericStereoFactor3D(gtsam_measurement_pt2, projection_cov,
                                                  gtsam.symbol('c', frame_id), p3d_sym, K)
             # Add factor to the graph
             self.graph.add(factor)

@@ -1,13 +1,13 @@
 import os
 import gtsam
 import numpy as np
-import matplotlib.pyplot as plt
 
 from gtsam.utils import plot
 
-import VAN_ex.code.Ex3.ex3 as ex3_utils
+from VAN_ex.code.Ex3.ex3 import calculate_relative_transformations
 from VAN_ex.code.Ex4.ex4 import TracksDB, Track
-from VAN_ex.code.BundleAdjustment import BundleAdjustment, BundleWindow
+from VAN_ex.code.BundleAdjustment import BundleWindow
+from VAN_ex.code.PoseGraph import PoseGraph
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
@@ -36,8 +36,8 @@ def q6_1(T_arr, tracks_db):
     keys = gtsam.KeyVector()
     keys.append(gtsam.symbol('c', c0))
     keys.append(gtsam.symbol('c', ck))
-    marg_cov_mat = marginals.jointMarginalInformation(keys).fullMatrix()  # Information Matrix
-    rel_cov = np.linalg.inv(marg_cov_mat)
+    marg_cov_mat = marginals.jointMarginalInformation(keys).at(keys[1], keys[1])  # Conditioning on the second keyframe
+    rel_cov = np.linalg.inv(marg_cov_mat)  # Cov of the relative motion
 
     # Calculate the relative pose between the first two keyframes
     pose_c0 = result.atPose3(gtsam.symbol('c', c0))
@@ -49,24 +49,31 @@ def q6_1(T_arr, tracks_db):
     print("Relative covariance between the first two keyframes:", rel_cov)
 
 
-def q6_2():
+def q6_2(tracks_db, T_arr):
     """
-    Pose Graph
-    Build a factor graph that represents the pose graph of the keyframes. Add the relative motion
-    estimated in the previous section as constraints to that graph with the correct uncertainty
+    Build a Pose Graph of the keyframes. We add the relative motion
+    estimated previously as constraints to that graph with the correct uncertainty
     (covariance matrix) for each constraint.
     Construct poses for the initial guess of the pose graph and optimize it.
-    - What would be a reasonable initialization for the poses?
-    - Plot the initial poses you supplied the optimization.
-    - For the keyframe locations resulting from the optimization:
-    o Plot the locations without covariances.
-     What effect did the optimization have on the locations?
-    What is the error of the factor graph before and after optimization?
-    Is that surprising? Explain.
-    o Plot the locations with the marginal covariances
-    :return:
     """
-    pass
+    # Build the Pose Graph of the keyframes
+    keyframes_pose_graph = PoseGraph.PoseGraph(tracks_db, T_arr)
+    keyframes_pose_graph.solve()
+
+    # Plot the initial poses you supplied the optimization.
+    plot.plot_trajectory(2, keyframes_pose_graph.initial_estimates, scale=1)
+
+    # Plot the locations without covariances for the keyframe locations
+    # resulting from the optimization.
+    plot.plot_trajectory(3, keyframes_pose_graph.result, scale=1)
+
+    # Print the error of the factor graph before and after optimization
+    print('Initial Error =', keyframes_pose_graph.get_graph_error(True))
+    print('Final Error =', keyframes_pose_graph.get_graph_error(False))
+
+    # Plot the locations with the marginal covariances
+    marginals = keyframes_pose_graph.get_marginals()
+    plot.plot_trajectory(4, keyframes_pose_graph.result, marginals=marginals, scale=1)
 
 
 def run_ex6():
@@ -77,10 +84,10 @@ def run_ex6():
     # Load tracks DB
     tracks_db = TracksDB.deserialize(DB_PATH)
     T_arr = np.load(T_ARR_PATH)
-    rel_t_arr = ex3_utils.calculate_relative_transformations(T_arr)
+    rel_t_arr = calculate_relative_transformations(T_arr)
 
-    q6_1(rel_t_arr, tracks_db)
-    # q6_2(tracks_db, rel_t_arr)
+    # q6_1(rel_t_arr, tracks_db)
+    q6_2(tracks_db, rel_t_arr)
 
 
 def main():
