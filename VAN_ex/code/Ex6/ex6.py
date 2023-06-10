@@ -3,11 +3,14 @@ import gtsam
 import numpy as np
 
 from gtsam.utils import plot
+import matplotlib.pyplot as plt
 
 from VAN_ex.code.Ex3.ex3 import calculate_relative_transformations
 from VAN_ex.code.Ex4.ex4 import TracksDB, Track
+from VAN_ex.code.Ex5.ex5 import plot_scene_3d
 from VAN_ex.code.BundleAdjustment import BundleWindow
-from VAN_ex.code.PoseGraph import PoseGraph
+from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph
+from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils, gtsam_plot_utils
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
@@ -23,14 +26,14 @@ def q6_1(T_arr, tracks_db):
     c0, ck = 0, 7  # First two keyframes
     first_window = BundleWindow.Bundle(c0, ck)
     first_window.create_graph_v2(T_arr, tracks_db)
-    result = first_window.optimize()  # Estimate relative motion and uncertainty
+    result = first_window.optimize()  # Optimize Locations and Landmarks
 
     # Extract the marginal covariances of the solution
     marginals = first_window.get_marginals()
 
     # Plot the resulting frame locations as a 3D graph including the covariance
     # of the locations (all the frames in the bundle window).
-    plot.plot_trajectory(1, result, marginals=marginals, scale=1)
+    plot_scene_3d(result, marginals=marginals, scale=10, question='q6_1')
 
     # Calculate the relative covariance between the first two keyframes
     keys = gtsam.KeyVector()
@@ -57,15 +60,25 @@ def q6_2(tracks_db, T_arr):
     Construct poses for the initial guess of the pose graph and optimize it.
     """
     # Build the Pose Graph of the keyframes
-    keyframes_pose_graph = PoseGraph.PoseGraph(tracks_db, T_arr)
+    keyframes_pose_graph = PoseGraph(tracks_db, T_arr)
     keyframes_pose_graph.solve()
 
     # Plot the initial poses you supplied the optimization.
-    plot.plot_trajectory(2, keyframes_pose_graph.initial_estimates, scale=1)
+    cameras_trajectory = projection_utils.get_trajectory_from_gtsam_poses(
+        keyframes_pose_graph.rel_poses)
+    fig, axes = plt.subplots(figsize=(6, 6))
+    fig = auxilery_plot_utils.plot_camera_trajectory(
+        camera_pos=cameras_trajectory, fig=fig, label="Init Poses Supplied", color='blue')
+    legend_element = plt.legend(loc='upper left', fontsize=12)
+    fig.gca().add_artist(legend_element)
+    fig.savefig('q6_2_Init_poses.png')
+    fig.show()
+    plt.clf()
 
     # Plot the locations without covariances for the keyframe locations
     # resulting from the optimization.
-    plot.plot_trajectory(3, keyframes_pose_graph.result, scale=1)
+    opt_poses = gtsam.utilities.extractPose3(keyframes_pose_graph.result).reshape(-1, 4, 3).transpose(0, 2, 1)
+    # TODO - Build 2d graph
 
     # Print the error of the factor graph before and after optimization
     print('Initial Error =', keyframes_pose_graph.get_graph_error(True))
@@ -73,8 +86,7 @@ def q6_2(tracks_db, T_arr):
 
     # Plot the locations with the marginal covariances
     marginals = keyframes_pose_graph.get_marginals()
-    plot.plot_trajectory(4, keyframes_pose_graph.result, marginals=marginals, scale=1)
-
+    # TODO - Build 2d graph
 
 def run_ex6():
     """

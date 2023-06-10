@@ -153,7 +153,8 @@ def plot_scene_from_above(result, points=None):
                   title="scene from above")
 
 
-def plot_scene_3d(result, init_view=None, points=None, title="3d scene"):
+def plot_scene_3d(result, init_view=None, points=None, title="3d scene",
+                  marginals=None, scale=1, question='q5_2'):
     """
     Function that plots a scene of a certain bundle window in 3D.
     """
@@ -167,7 +168,7 @@ def plot_scene_3d(result, init_view=None, points=None, title="3d scene"):
     for point in points:
         gtsam_plot_utils.plot_point3_on_axes(ax, point, 'k.')
 
-    gtsam_plot_utils.plot_trajectory(0, result, scale=5)
+    gtsam_plot_utils.plot_trajectory(0, result, scale=scale, marginals=marginals)
     gtsam_plot_utils.set_axes_equal(0)
 
     ax.set_zlim3d(0, 50)
@@ -175,7 +176,7 @@ def plot_scene_3d(result, init_view=None, points=None, title="3d scene"):
     ax.set_ylim3d(-45, 5)
     ax.view_init(**init_view)
     fig.suptitle(title, fontsize=16, fontweight='bold')
-    fig.savefig("q5_2 " + title + '.png')
+    fig.savefig(question + ' ' + title + '.png')
     # fig.show()
     plt.clf()
 

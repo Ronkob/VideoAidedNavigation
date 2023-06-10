@@ -9,7 +9,7 @@ class PoseGraph:
     Class represents the factor graph which is build from the keyframes.
     """
     def __init__(self, tracks_db, T_arr):
-        self.keyframes = []
+        self.keyframes = [0]
         self.graph = gtsam.NonlinearFactorGraph()
         self.rel_poses, self.rel_covs = [], []
         self.tracks_db = tracks_db
@@ -17,7 +17,7 @@ class PoseGraph:
         self.initial_estimates = gtsam.Values()
         self.result = None
 
-        self.choose_keyframes(type='end_frame')
+        self.choose_keyframes()
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
 
         self.calculate_rel_cov_and_poses()
@@ -34,7 +34,11 @@ class PoseGraph:
             keys.append(gtsam.symbol('c', last_kf))
             bundle.create_graph_v2(self.T_arr, self.tracks_db)
             bundle.optimize()
-            marginals = bundle.get_marginals()
+            try:
+                marginals = bundle.get_marginals()
+            except:
+                print("Failed to get marginals for bundle window: ", bundle.frames_idxs)
+                continue
             marg_cov_mat = marginals.jointMarginalInformation(keys).at(keys[1], keys[1])
             rel_cov = np.linalg.inv(marg_cov_mat)
             self.rel_covs.append(rel_cov)
@@ -70,7 +74,6 @@ class PoseGraph:
     def init_pose_graph(self):
         """
         Create the pose graph with initial estimates.
-        :return:
         """
         # Init first camera pose
         init_pose = gtsam.Pose3()
@@ -99,24 +102,15 @@ class PoseGraph:
 
             prev_cam = camera
 
-    def choose_keyframes(self, type, INTERVAL=10, parameter=-1):
-        if type == 'length':
-            key_frames = []
-            for frame_id in range(len(self.tracks_db.frame_ids))[:parameter]:
-                if frame_id % INTERVAL == 0:
-                    key_frames.append(frame_id)
-            self.keyframes = key_frames
-
-        elif type == 'end_frame':
-            FRAC = 0.85
-            self.keyframes.append(0)
-            while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
-                tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
-                end_frames = sorted([self.tracks_db.tracks[track].frame_ids[-1] for track in tracks_in_keyframe])
-                self.keyframes.append(end_frames[int(len(end_frames) * FRAC)])
-                if len(self.tracks_db.frame_ids) - 1 - self.keyframes[-1] < 10:
-                    self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
-                    break
+    def choose_keyframes(self):
+        FRAC = 0.9
+        while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
+            tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
+            end_frames = sorted([self.tracks_db.tracks[track].frame_ids[-1] for track in tracks_in_keyframe])
+            self.keyframes.append(end_frames[int(len(end_frames) * FRAC)])
+            if len(self.tracks_db.frame_ids) - 1 - self.keyframes[-1] < 10:
+                self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
+                break
         print('First 10 Keyframes: ', self.keyframes[:10])
 
     @staticmethod

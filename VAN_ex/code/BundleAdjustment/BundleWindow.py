@@ -90,22 +90,22 @@ class Bundle:
 
         # coords for triangulation
         xl, xr, y = last_left_kp[0], last_right_kp[0], last_left_kp[1]
-        gtsam_stereo_point2_for_triangulation = gtsam.StereoPoint2(xl, xr, y)
-        gtsam_p3d = gtsam_frame_to_triangulate_from.backproject(gtsam_stereo_point2_for_triangulation)
+        point = gtsam.StereoPoint2(xl, xr, y)
+        p3d = gtsam_frame_to_triangulate_from.backproject(point)
 
         # Add the point to the graph and to the list of points
-        p3d_sym = gtsam.symbol('q', track.get_track_id())
-        self.points.append(p3d_sym)
-        self.initial_estimates.insert(p3d_sym, gtsam_p3d)
+        symbol = gtsam.symbol('q', track.get_track_id())
+        self.points.append(symbol)
+        self.initial_estimates.insert(symbol, p3d)
 
         for frame_id in range(first_frame, last_frame + 1):
             xl, xr, y = left_locations[frame_id][0], right_locations[frame_id][0], left_locations[frame_id][1]
-            gtsam_measurement_pt2 = gtsam.StereoPoint2(xl, xr, y)
+            inner_point = gtsam.StereoPoint2(xl, xr, y)
 
             # Create a stereo factor
             projection_cov = gtsam.noiseModel.Isotropic.Sigma(3, 1.0)
-            factor = gtsam.GenericStereoFactor3D(gtsam_measurement_pt2, projection_cov, gtsam.symbol('c', frame_id),
-                                                 p3d_sym, K)
+            factor = gtsam.GenericStereoFactor3D(inner_point, projection_cov, gtsam.symbol('c', frame_id),
+                                                 symbol, K)
             # Add the factor to the graph
             self.graph.add(factor)
 

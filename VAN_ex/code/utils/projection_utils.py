@@ -35,11 +35,8 @@ def convert_rel_gtsam_trans_to_global(T_arr):
 
 def convert_from_bundel_to_world(first_cam: gtsam.Pose3, bundle_landmarks: List[gtsam.Point3]):
     """
-    # convert the points to world coordinates, from already "world" coordinates, but they are according to the first
+    Convert the points to world coordinates, from already "world" coordinates, but they are according to the first
     camera of the bundle
-    :param first_cam:
-    :param bundle_landmarks:
-    :return:
     """
     global_landmarks = []
     for landmark in bundle_landmarks:
@@ -53,9 +50,6 @@ def convert_rel_landmarks_to_global(rel_cameras, rel_landmarks):
     """
     convert the points to world coordinates, from already "world" coordinates, but they are according to the first
     camera of every bundle
-    :param rel_cameras:
-    :param rel_landmarks:
-    :return:
     """
     global_landmarks = []
     for bundle_camera, bundle_landmarks in zip(rel_cameras, rel_landmarks):
@@ -75,7 +69,7 @@ def get_trajectory_from_gtsam_poses(poses: List[gtsam.Pose3]):
 def calc_relative_camera_pos(ext_camera_mat):
     """
     Returns the relative position of a camera according to its extrinsic
-     matrix.
+    matrix.
     """
     return -1 * ext_camera_mat[:, :3].T @ ext_camera_mat[:, 3]
 
