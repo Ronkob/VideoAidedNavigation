@@ -39,23 +39,6 @@ class BundleAdjustment:
     @utils.measure_time
     def solve(self):
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
-        for bundle_window in self.bundle_windows:
-            print("Optimizing bundle window: ", bundle_window.frames_idxs)
-            bundle_window.create_graph_v2(self.T_arr, self.tracks_db)
-            result = bundle_window.optimize()
-
-            # Between each keyframe and its predecessor
-            if not self.cameras_rel_pose:
-                self.cameras_rel_pose.append(result.atPose3(gtsam.symbol('c', 0)))
-                self.init_camera_rel_pose.append(bundle_window.initial_estimates.atPose3(gtsam.symbol('c', 0)))
-            self.cameras_rel_pose.append(result.atPose3(gtsam.symbol('c', bundle_window.frames_idxs[-1])))
-            self.points_rel_pose.append([result.atPoint3(point) for point in bundle_window.points])
-            self.init_camera_rel_pose.append(
-                bundle_window.initial_estimates.atPose3(gtsam.symbol('c', bundle_window.frames_idxs[-1])))
-
-    @utils.measure_time
-    def solve_iterative(self):
-        self.bundle_windows = self.create_bundle_windows(self.keyframes)
         cameras = [gtsam.Pose3()]
         points = []
         for bundle_window in self.bundle_windows:

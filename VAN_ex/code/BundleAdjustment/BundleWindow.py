@@ -68,19 +68,19 @@ class Bundle:
 
         tracks_in_frames = list(tracks_in_frames)
         for track_id in tracks_in_frames:
-            # Create a gtsam object for the last frame for making the projection at the function "add_factors"
+            # create a gtsam camera for the last frame of the bundle window
             gtsam_last_cam = gtsam.StereoCamera(pose, K)
             first_frame = max(self.frames_idxs[0], tracks_db.tracks[track_id].get_frame_ids()[0])
             last_frame = min(self.frames_idxs[-1], tracks_db.tracks[track_id].get_frame_ids()[-1])
             if first_frame > last_frame:
                 continue
-            self.add_factors_to_graph(track=tracks_db.tracks[track_id], first_frame=first_frame, last_frame=last_frame,
-                                      gtsam_frame_to_triangulate_from=gtsam_last_cam, K=K)
+            self.extract_factors_to_gtsam(track=tracks_db.tracks[track_id], first_frame=first_frame, last_frame=last_frame,
+                                          gtsam_frame_to_triangulate_from=gtsam_last_cam, K=K)
 
-    def add_factors_to_graph(self, track: Track, first_frame, last_frame, gtsam_frame_to_triangulate_from, K):
+    def extract_factors_to_gtsam(self, track: Track, first_frame, last_frame, gtsam_frame_to_triangulate_from, K):
         left_kp_all, right_kp_all = track.get_left_kp(), track.get_right_kp()
 
-        # Strip the locations to the bundle window
+        # get the locations of the track only inside the bundle window
         left_locations = {frame_id: kp for frame_id, kp in left_kp_all.items() if first_frame <= frame_id <= last_frame}
         right_locations = {frame_id: kp for frame_id, kp in right_kp_all.items() if
                            first_frame <= frame_id <= last_frame}
@@ -93,7 +93,7 @@ class Bundle:
         gtsam_stereo_point2_for_triangulation = gtsam.StereoPoint2(xl, xr, y)
         gtsam_p3d = gtsam_frame_to_triangulate_from.backproject(gtsam_stereo_point2_for_triangulation)
 
-        # Add the point to the graph and the list of points
+        # Add the point to the graph and to the list of points
         p3d_sym = gtsam.symbol('q', track.get_track_id())
         self.points.append(p3d_sym)
         self.initial_estimates.insert(p3d_sym, gtsam_p3d)
@@ -102,11 +102,11 @@ class Bundle:
             xl, xr, y = left_locations[frame_id][0], right_locations[frame_id][0], left_locations[frame_id][1]
             gtsam_measurement_pt2 = gtsam.StereoPoint2(xl, xr, y)
 
-            # Factor creation
+            # Create a stereo factor
             projection_cov = gtsam.noiseModel.Isotropic.Sigma(3, 1.0)
             factor = gtsam.GenericStereoFactor3D(gtsam_measurement_pt2, projection_cov, gtsam.symbol('c', frame_id),
                                                  p3d_sym, K)
-            # Add factor to the graph
+            # Add the factor to the graph
             self.graph.add(factor)
 
     def get_from_optimized(self, obj: str):
