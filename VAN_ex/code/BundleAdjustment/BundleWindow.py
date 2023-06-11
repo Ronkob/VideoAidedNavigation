@@ -49,33 +49,32 @@ class Bundle:
         for frame_id in self.frames_idxs:
             tracks_in_frames.update(tracks_db.get_track_ids(frame_id))
 
-            cam_symbol = gtsam.symbol('c', frame_id)
-            self.cameras.append(cam_symbol)
+            symbol = gtsam.symbol('c', frame_id)
+            self.cameras.append(symbol)
 
             ext_mat = T_arr[frame_id]
             cur_ext_mat = projection_utils.composite_transformations(base_camera, ext_mat)
-
             pose = gtsam.Pose3(projection_utils.convert_ext_mat_to_world(cur_ext_mat))
-            self.initial_estimates.insert(cam_symbol, pose)
+            self.initial_estimates.insert(symbol, pose)
 
             # Add a prior factor just for first camera pose
             if frame_id == self.frames_idxs[0]:  # Constraints for first frame
                 sigmas = np.array([(1 * np.pi / 180) ** 2] * 3 + [1e-1, 1e-2, 1.0])
                 cov = gtsam.noiseModel.Diagonal.Sigmas(sigmas=sigmas)
-                factor = gtsam.PriorFactorPose3(cam_symbol, pose, cov)
+                factor = gtsam.PriorFactorPose3(symbol, pose, cov)
                 self.prior_factor = factor
                 self.graph.add(factor)
 
         tracks_in_frames = list(tracks_in_frames)
         for track_id in tracks_in_frames:
             # create a gtsam camera for the last frame of the bundle window
-            gtsam_last_cam = gtsam.StereoCamera(pose, K)
+            last_stereo = gtsam.StereoCamera(pose, K)
             first_frame = max(self.frames_idxs[0], tracks_db.tracks[track_id].get_frame_ids()[0])
             last_frame = min(self.frames_idxs[-1], tracks_db.tracks[track_id].get_frame_ids()[-1])
             if first_frame > last_frame:
                 continue
             self.extract_factors_to_gtsam(track=tracks_db.tracks[track_id], first_frame=first_frame, last_frame=last_frame,
-                                          gtsam_frame_to_triangulate_from=gtsam_last_cam, K=K)
+                                          gtsam_frame_to_triangulate_from=last_stereo, K=K)
 
     def extract_factors_to_gtsam(self, track: Track, first_frame, last_frame, gtsam_frame_to_triangulate_from, K):
         left_kp_all, right_kp_all = track.get_left_kp(), track.get_right_kp()

@@ -145,12 +145,14 @@ def q5_3(tracks_db, T_arr):
 
 # ===== Helper functions =====
 
-def plot_scene_from_above(result, points=None):
+def plot_scene_from_above(result, points=None, question=None, marginals=None):
     """
     Function that plots a scene of a certain bundle window from above.
     """
-    plot_scene_3d(result, points=points, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
-                  title="scene from above")
+    plot_scene_3d(result, points=points,
+                  init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
+                  title="scene from above", question=question,
+                  marginals=marginals)
 
 
 def plot_scene_3d(result, init_view=None, points=None, title="3d scene",
@@ -162,18 +164,18 @@ def plot_scene_3d(result, init_view=None, points=None, title="3d scene",
         init_view = {'azim': -15, 'elev': 200, 'vertical_axis': 'y'}
     fig = plt.figure(num=0, figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
-    if points is None:
-        points = gtsam.utilities.extractPoint3(result)
-
-    for point in points:
-        gtsam_plot_utils.plot_point3_on_axes(ax, point, 'k.')
+    # if points is None:
+    #     points = gtsam.utilities.extractPoint3(result)
+    #
+    # for point in points:
+    #     gtsam_plot_utils.plot_point3_on_axes(ax, point, 'k.')
 
     gtsam_plot_utils.plot_trajectory(0, result, scale=scale, marginals=marginals)
     gtsam_plot_utils.set_axes_equal(0)
 
-    ax.set_zlim3d(0, 50)
-    ax.set_xlim3d(-20, 30)
-    ax.set_ylim3d(-45, 5)
+    # ax.set_zlim3d(0, 50)
+    # ax.set_xlim3d(-20, 30)
+    # ax.set_ylim3d(-45, 5)
     ax.view_init(**init_view)
     fig.suptitle(title, fontsize=16, fontweight='bold')
     fig.savefig(question + ' ' + title + '.png')

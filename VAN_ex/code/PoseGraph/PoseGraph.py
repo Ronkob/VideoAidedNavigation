@@ -1,4 +1,5 @@
 import gtsam
+import pickle
 import numpy as np
 
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
@@ -21,6 +22,9 @@ class PoseGraph:
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
 
         self.calculate_rel_cov_and_poses()
+        # with open('relatives.pkl', 'rb') as file:  # When already saved
+        #     self.rel_covs, self.rel_poses = pickle.load(file)
+
         self.init_pose_graph()
 
     def calculate_rel_cov_and_poses(self):
@@ -34,6 +38,7 @@ class PoseGraph:
             keys.append(gtsam.symbol('c', last_kf))
             bundle.create_graph_v2(self.T_arr, self.tracks_db)
             bundle.optimize()
+            marginals = bundle.get_marginals()
             try:
                 marginals = bundle.get_marginals()
             except:
@@ -47,6 +52,9 @@ class PoseGraph:
             last_pose = bundle.result.atPose3(gtsam.symbol('c', last_kf))
             rel_pose = first_pose.between(last_pose)
             self.rel_poses.append(rel_pose)
+
+        with open('relatives.pkl', 'wb') as file:
+            pickle.dump((self.rel_covs, self.rel_poses), file)
 
     def get_graph_error(self, initial: bool = False):
         """
@@ -78,15 +86,13 @@ class PoseGraph:
         # Init first camera pose
         init_pose = gtsam.Pose3()
         init_cam = gtsam.symbol('c', 0)
+        self.initial_estimates.insert(init_cam, init_pose)
 
         # Add prior factor
-        sigmas = np.array([(1 * np.pi / 180) ** 2] * 3 + [1e-1, 1e-2, 1.0])
+        sigmas = np.array([(np.pi / 180)] * 6)
         pose_cov = gtsam.noiseModel.Diagonal.Sigmas(sigmas=sigmas)
         factor = gtsam.PriorFactorPose3(init_cam, init_pose, pose_cov)
         self.graph.add(factor)
-
-        # Add initial estimate
-        self.initial_estimates.insert(init_cam, init_pose)
 
         prev_cam = init_cam
         for i in range(len(self.rel_covs)):
@@ -103,7 +109,7 @@ class PoseGraph:
             prev_cam = camera
 
     def choose_keyframes(self):
-        FRAC = 0.9
+        FRAC = 0.92
         while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
             tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
             end_frames = sorted([self.tracks_db.tracks[track].frame_ids[-1] for track in tracks_in_keyframe])
