@@ -52,3 +52,13 @@ In this exercise we prepare for implementing Loop Closure, by extracting relativ
 
 
 ## Ex7
+In this exercise, we will recognize that the current location of the vehicle is potentially similar to some past location and initiate a search for the exact relative pose between two frames.
+When we find such connection to a past frame, we’ll use it to add a Loop Closure constraint to the pose graph, thus greatly reducing the drift of the trajectory estimation.
+
+
+## Final Project
+Over the past exercises we implemented a system that estimates the trajectory of the vehicle from a video captured with an onboard stereo camera.
+The system uses a suite of algorithms in several stages to achieve this goal. In the final project report we present the different parts of the system, explore their properties and the quality of the estimation.
+Moreover, we will present in our own words the different stages of the system, and summarize the ideas and algorithms as we comprehend them.
+We will present graphs, figures and statistic that demonstrates the performance of the different stages of the system as well as the system as a whole.
+For each graph, we provide an analysis of the information presented in the graph, highlight what the graph shows and explain what aspect (positive or negative) it demonstrates.
