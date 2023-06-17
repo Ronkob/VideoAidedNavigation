@@ -415,7 +415,7 @@ def get_ground_truth_transformations(left_cam_trans_path=CAM_TRAJ_PATH, movie_le
     with open(left_cam_trans_path) as f:
         lines = f.readlines()
         print("Number of lines: ", len(lines))
-    for i in range(movie_len):
+    for i in range(movie_len+1):
         left_mat = np.array(lines[i].split(" "))[:-1].astype(float).reshape((3, 4))
         T_ground_truth_arr.append(left_mat)
     return T_ground_truth_arr

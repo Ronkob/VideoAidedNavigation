@@ -96,8 +96,8 @@ def q5_2(tracks_db, t_arr):
 
     # Plot the resulting positions of the first bundle both as a 3D graph, and as a view-from-above (2d)
     # of the scene, with all cameras and points.
-    plot_scene_from_above(result)
-    plot_scene_3d(result)
+    plot_scene_from_above(result, question='5_2')
+    plot_scene_3d(result, question='5_2')
 
 
 def q5_3(tracks_db, T_arr):
@@ -367,14 +367,13 @@ def run_ex5():
     T_arr = np.load(T_ARR_PATH)
     rel_t_arr = ex3_utils.calculate_relative_transformations(T_arr)
 
-    q5_1(tracks_db)
-    q5_2(tracks_db, rel_t_arr)
+    # q5_1(tracks_db)
+    # q5_2(tracks_db, rel_t_arr)
     q5_3(tracks_db, rel_t_arr)
 
 
 def main():
     run_ex5()
-
 
 if __name__ == '__main__':
     main()

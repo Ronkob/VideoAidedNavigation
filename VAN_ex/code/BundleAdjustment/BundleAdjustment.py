@@ -34,7 +34,7 @@ class BundleAdjustment:
                 if len(self.tracks_db.frame_ids) - 1 - self.keyframes[-1] < 10:
                     self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
                     break
-        print('First 10 Keyframes: ', self.keyframes[:10])
+        print('last 10 Keyframes: ', self.keyframes[-10:])
 
     @utils.measure_time
     def solve(self):
