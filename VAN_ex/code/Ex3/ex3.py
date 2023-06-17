@@ -429,7 +429,7 @@ def track_movement_all_movie():
     """
     T_arr = [ex2_utils.read_cameras()[1]]
     start_pos = 0
-    for idx in range(start_pos, MOVIE_LENGTH - 1):
+    for idx in range(start_pos, MOVIE_LENGTH):
         # print status of loop execution every 5 iterations
         if idx % 5 == 0:
             print("iteration number: ", idx)
@@ -453,13 +453,14 @@ def run_ex3():
     Runs all exercise 3 sections.
     """
     # Sections 3.1 - 3.5
-    one_run_over_ex3([0, 1])
+    # one_run_over_ex3([0, 1])
 
-    # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.  # track_movement_all_movie()
+    # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.
+    track_movement_all_movie()
 
 
 def main():
-    # run_ex3()
+    run_ex3()
     T_arr = np.load("T_arr.npy")
     ground_truth_T_arr = get_ground_truth_transformations()
     ground_truth_pos = calculate_camera_trajectory(ground_truth_T_arr)
