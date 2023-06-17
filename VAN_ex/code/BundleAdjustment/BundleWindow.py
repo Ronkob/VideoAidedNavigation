@@ -6,7 +6,8 @@ from VAN_ex.code.Ex4.ex4 import Track, TracksDB
 from VAN_ex.code.Ex5 import ex5 as ex5_utils
 from VAN_ex.code.utils import projection_utils, utils
 
-MAX_Z = 350
+MAX_Z = 200
+MIN_Y = -10
 
 
 class Bundle:
@@ -22,9 +23,15 @@ class Bundle:
         self.result = None
 
     def get_marginals(self):
+        print("Getting marginals...")
+        # print(f"Graph: {self.graph}")
+        # print(f"Result: {self.result}")
+
         if self.result:
+            print("Computing marginals from result...")
             marginals = gtsam.Marginals(self.graph, self.result)
         else:
+            print("Computing marginals from initial estimates...")
             marginals = gtsam.Marginals(self.graph, self.initial_estimates)
         return marginals
 
@@ -59,7 +66,7 @@ class Bundle:
 
             # Add a prior factor just for first camera pose
             if frame_id == self.frames_idxs[0]:  # Constraints for first frame
-                sigmas = np.array([(1 * np.pi / 180) ** 2] * 3 + [1e-1, 1e-2, 1.0])
+                sigmas = np.array([(1 * np.pi / 180) ** 2] * 3 + [1e-1, 3e-2, 1.0])
                 cov = gtsam.noiseModel.Diagonal.Sigmas(sigmas=sigmas)
                 factor = gtsam.PriorFactorPose3(symbol, pose, cov)
                 self.prior_factor = factor
@@ -92,7 +99,16 @@ class Bundle:
         point = gtsam.StereoPoint2(xl, xr, y)
         p3d = gtsam_frame_to_triangulate_from.backproject(point)
 
-        # Add the point to the graph and to the list of points
+        # Add the point to the graph and to the list of points only if it's z is not too big
+        if p3d[-1] >= MAX_Z or p3d[2] <= 0:
+            return
+
+        # watch for the point's y coordinate
+        if p3d[1] > 1 or p3d[1] < MIN_Y:
+            return
+
+        # print(f"Adding point {track.get_track_id()} to graph, p3d: {p3d}")
+
         symbol = gtsam.symbol('q', track.get_track_id())
         self.points.append(symbol)
         self.initial_estimates.insert(symbol, p3d)

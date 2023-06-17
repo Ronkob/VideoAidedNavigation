@@ -53,7 +53,7 @@ def q6_1(T_arr, tracks_db):
     print("Relative covariance between the first two keyframes:", rel_cov)
 
 
-def q6_2(tracks_db, T_arr):
+def q6_2(T_arr, tracks_db):
     """
     Build a Pose Graph of the keyframes. We add the relative motion
     estimated previously as constraints to that graph with the correct uncertainty
@@ -65,11 +65,9 @@ def q6_2(tracks_db, T_arr):
     keyframes_pose_graph.solve()
 
     # Plot the initial poses you supplied the optimization.
-    plot_scene_from_above(keyframes_pose_graph.result, question='q6_2 initial poses')
+    plot_scene_from_above(keyframes_pose_graph.initial_estimates, question='q6_2 initial poses')
 
-
-    # Plot the locations without covariances for the keyframe locations
-    # resulting from the optimization.
+    # Plot the locations without covariances for the keyframe locations resulting from the optimization.
     # opt_poses = gtsam.utilities.extractPose3(keyframes_pose_graph.result).reshape(-1, 4, 3).transpose(0, 2, 1)
     plot_scene_from_above(keyframes_pose_graph.result, question='q6_2 optimized poses')
 
@@ -93,7 +91,7 @@ def run_ex6():
     rel_t_arr = calculate_relative_transformations(T_arr)
 
     # q6_1(rel_t_arr, tracks_db)
-    q6_2(tracks_db, rel_t_arr)
+    q6_2(rel_t_arr, tracks_db)
 
 
 def main():

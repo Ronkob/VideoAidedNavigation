@@ -145,18 +145,15 @@ def q5_3(tracks_db, T_arr):
 
 # ===== Helper functions =====
 
-def plot_scene_from_above(result, points=None, question=None, marginals=None):
+def plot_scene_from_above(result, points=None, question=None, marginals=None, scale=1):
     """
     Function that plots a scene of a certain bundle window from above.
     """
-    plot_scene_3d(result, points=points,
-                  init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
-                  title="scene from above", question=question,
-                  marginals=marginals)
+    plot_scene_3d(result, points=points, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
+                  title="scene from above", question=question, marginals=marginals, scale=scale)
 
 
-def plot_scene_3d(result, init_view=None, points=None, title="3d scene",
-                  marginals=None, scale=1, question='q5_2'):
+def plot_scene_3d(result, init_view=None, points=None, title="3d scene", marginals=None, scale=1, question='q5_2'):
     """
     Function that plots a scene of a certain bundle window in 3D.
     """
@@ -374,6 +371,7 @@ def run_ex5():
 
 def main():
     run_ex5()
+
 
 if __name__ == '__main__':
     main()

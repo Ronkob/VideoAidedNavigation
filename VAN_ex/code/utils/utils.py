@@ -101,7 +101,7 @@ def significance_test(matches, ratio):
     return accepted_matches, rejected_matches
 
 
-def match(desc1, desc2):
+def match_significance(desc1, desc2):
     """
     Match the two descriptors list.
     :param desc1: List of descriptors from Image1.
@@ -114,13 +114,23 @@ def match(desc1, desc2):
     return np.array(matches)
 
 
-def get_matches(img1, img2):
+def match_bf(desc1, desc2):
+    brute_force = cv2.BFMatcher(normType=cv2.NORM_HAMMING, crossCheck=True)
+    matches = brute_force.match(desc1, desc2)
+    matches, _ = significance_test(matches, RATIO)
+    return np.array(matches)
+
+
+def get_matches(img1, img2, significance=False):
     """
     Returns matches from 2 images.
     """
     algorithm = ALGORITHM
     left_image_kp, left_image_desc, right_image_kp, right_image_desc = detect_and_extract(algorithm, img1, img2)
-    matches = match(left_image_desc, right_image_desc)
+    if significance:
+        matches = match_significance(left_image_desc, right_image_desc)
+    else:
+        matches = match_bf(left_image_desc, right_image_desc)
     return matches, left_image_kp, right_image_kp
 
 
