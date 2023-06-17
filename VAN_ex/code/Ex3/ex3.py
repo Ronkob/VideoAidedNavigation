@@ -293,8 +293,9 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers):
     """
     best_num_supporters, best_ext_mat, best_supporters = 0, None, None
     N1, p, eps, sum_outliers, sum_inliers = 0, 0.999, 0.99, 0, 0  # To bound number of iterations
+    max_iterations = estimate_iterations(p, eps)
 
-    while eps != 0 and (N1 < estimate_iterations(p, eps)) and N1 < MAX_RANSAC_ITERATIONS:
+    while eps != 0 and (N1 < max_iterations) and N1 < MAX_RANSAC_ITERATIONS:
         random_idx = np.random.choice(len(pair0_p3d), size=PNP_POINTS, replace=False)  # Random sample 4 points
         left1_ext_mat = calc_ext_mat_from_sample_idxs(random_idx, left1_inliers, pair0_p3d, flag=cv2.SOLVEPNP_P3P)
         # if AP3P fails, try again
@@ -313,25 +314,28 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers):
         N1 += 1
         sum_outliers += (len(left1_inliers) - len(supporters_idx))
         sum_inliers += len(supporters_idx)
-        eps = min(sum_outliers / (sum_inliers + sum_outliers), 0.99)  # if (eps == 0):  #     print("eps is zero")
+        eps = min(sum_outliers / (sum_inliers + sum_outliers), 0.99)
+        if eps == 0:
+            print("eps is zero")
+        max_iterations = estimate_iterations(p, eps)
 
     # Refinement
     # best_ext_mat, best_supporters = refine_ransac(best_supporters, left1_inliers, right1_inliers, pair0_p3d, iters=1)
-    # if eps > 0.2:
-    #     print(f"Ransac failed to converge, eps={eps}, N1={N1}, estimated iters={estimated_iters}")
+    # if eps > 0.4:
+    #     print(f"Ransac failed to converge, eps={eps}, N1={N1}, estimated iters={max_iterations}")
     return best_ext_mat, best_supporters
 
 
 # supporters_idx = consensus_supporters()
 def refine_ransac(best_supporters, left1_inliers, right1_inliers, pair0_p3d, iters=1):
-    for i in range(max(iters, 1)):
-        left_ext_mat = calc_ext_mat_from_sample_idxs(best_supporters, left1_inliers, pair0_p3d,
-                                                     flag=cv2.SOLVEPNP_ITERATIVE)
+    for _ in range(iters):
+        left_ext_mat = calc_ext_mat_from_sample_idxs(best_supporters, left1_inliers, pair0_p3d, flag=cv2.SOLVEPNP_ITERATIVE)
         left_T, right_T = calculate_camera_proj_matrices(left_ext_mat)
-        idx_supporters = find_consensus_supporters(pair0_p3d, left_T, left1_inliers, right_T, right1_inliers)
-        if len(idx_supporters) > len(best_supporters):
-            best_supporters = idx_supporters
-
+        supporters = find_consensus_supporters(pair0_p3d, left_T, left1_inliers, right_T, right1_inliers)
+        if len(supporters) >= len(best_supporters):
+            best_supporters = supporters
+        else:
+            break
     return left_ext_mat, best_supporters
 
 
@@ -354,7 +358,6 @@ def track_movement_successive(idxs):
     inliers = (left0_inliers[supporters_idx], right0_inliers[supporters_idx], left1_inliers[supporters_idx],
                right1_inliers[supporters_idx])
     return best_ext_mat, inliers, len(supporters_idx) / len(left0_inliers) * 100
-
 
 def one_run_over_ex3(idxs):
     """

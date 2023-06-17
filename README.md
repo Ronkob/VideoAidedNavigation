@@ -10,7 +10,7 @@ This means that we will create a map of the environment, and at the same time we
 The project will be devided to 7 exercises, where we will gradually develop a largescale project that employs a suite of algorithms to provide local visual odometry and global trajectory estimation. Simply put, we will find the vehicle locations using only its cameras. The system will run on the KITTI stereo dataset and will tackle these challenges using image processing, image understanding and 3D optimization techniques to estimate the vehicle path and the geometric structure of the world.
 In this project, we will make an extensive use of opencv (mainly for features extraction and matching) and gtsam (for factor and pose graphs).
 
-<img src=VAN_ex/media/path_start_gif.gif width="500" height="" alt="">
+![path_start_gif.gif](VAN_ex%2Fmedia%2Fpath_start_gif.gif)
 
 ## Ex1
 In this exercise we will develop the feature-tracking system, which is a key-component in any vision-based navigation system. Basically, the feature-tracking system receives as input a series of images (or, in our case, stereo pairs) and outputs trajectories of points in the image, where each track represents the different pixel locations of a certain object in the scene.
@@ -23,7 +23,7 @@ In this exercise we will develop the feature-tracking system, which is a key-com
 In this exercise we explore a geometric outlier rejection policy and use the stereo matches for triangulation to produce a 3D point cloud.
 
 ![image](https://github.com/Dor890/SLAM/assets/64433958/98a48ce7-afca-4daf-bb8f-b344a3d90ea7)
-
+![track_cut_around_3132.gif](VAN_ex%2Fcode%2FEx4%2Ftrack_cut_around_3132.gif)
 ## Ex3
 In this exercise we will move forward in time to the next stereo pair and match the left image to the previous left image and run PnP using RANSAC iterations to estimate the relative motion. We will also use the extra information - we now have two stereo pairs - to reject (almost all of) the remaining outliers.
 

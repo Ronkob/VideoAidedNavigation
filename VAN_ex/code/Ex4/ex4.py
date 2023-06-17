@@ -156,7 +156,6 @@ class TracksDB:
                     taken_kp_idxs.append(i)
                     break  # advance to the next kp
 
-
         # Create new tracks for the kps that were not taken
         reminder_left_kp_curr, reminder_right_kp_curr = self.get_reminder_kp(taken_kp_idxs, curr_frame_supporters_kp)
         reminder_left_kp_next, reminder_right_kp_next = self.get_reminder_kp(taken_kp_idxs, next_frame_supporters_kp)
@@ -491,13 +490,12 @@ def plot_inliers_per_frame(inliers_precent, frames):
 @utils.measure_time
 def run_sequence(start_frame, end_frame):
     db = TracksDB()
-    # inliers_precent_lst = []
     for idx in range(start_frame, end_frame):
         left_ext_mat, inliers, inliers_precent = ex3_utils.track_movement_successive([idx, idx + 1])
         if left_ext_mat is not None:
             left0_kp, right0_kp, left1_kp, right1_kp = inliers
             db.extend_tracks(idx, (left0_kp, right0_kp),
-                             (left1_kp, right1_kp))  # inliers_precent_lst.append(inliers_precent)
+                             (left1_kp, right1_kp))
         else:
             print("something went wrong, no left_ext_mat")
         print(" -- Step {} -- ".format(idx))
@@ -514,25 +512,25 @@ def run_ex4():
     """
     np.random.seed(7)
     tracks_db = None
-    # tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
+    tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
     if tracks_db is None:
         tracks_db = TracksDB.deserialize(DB_PATH)
 
     # # q4.2
-    # tracks_db.get_statistics()
+    tracks_db.get_statistics()
     #
     # # q4.3
-    # track = get_rand_track(10, tracks_db)
-    # plot_random_track(track)
+    track = get_rand_track(10, tracks_db)
+    plot_random_track(track)
     #
     # # q4.4
-    # plot_connectivity_graph(tracks_db)
+    plot_connectivity_graph(tracks_db)
     #
     # #q4.6
-    # plot_track_length_histogram(tracks_db)
+    plot_track_length_histogram(tracks_db)
     #
     # # q4.7
-    # plot_reprojection_error(tracks_db)
+    plot_reprojection_error(tracks_db)
 
     create_gif(START_FRAME, END_FRAME, tracks_db)
 

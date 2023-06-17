@@ -108,7 +108,7 @@ def match(desc1, desc2):
     :param desc2: List of descriptors from Image2.
     :return: List of matches found.
     """
-    brute_force = cv2.BFMatcher()
+    brute_force = cv2.BFMatcher(normType=cv2.NORM_HAMMING)
     matches = brute_force.knnMatch(desc1, desc2, k=2)
     matches, _ = significance_test(matches, RATIO)
     return np.array(matches)
@@ -120,7 +120,8 @@ def get_matches(img1, img2):
     """
     algorithm = ALGORITHM
     left_image_kp, left_image_desc, right_image_kp, right_image_desc = detect_and_extract(algorithm, img1, img2)
-    return match(left_image_desc, right_image_desc), left_image_kp, right_image_kp
+    matches = match(left_image_desc, right_image_desc)
+    return matches, left_image_kp, right_image_kp
 
 
 def reject_matches_pattern(matches, left_image_kp, right_image_kp):
