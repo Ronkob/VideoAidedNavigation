@@ -27,7 +27,7 @@ class BundleAdjustment:
             self.keyframes = key_frames
 
         elif type == 'end_frame':
-            FRAC = 0.85
+            FRAC = 0.6
             self.keyframes.append(0)
             while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
                 tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
