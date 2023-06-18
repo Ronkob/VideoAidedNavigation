@@ -27,7 +27,7 @@ In this exercise we explore a geometric outlier rejection policy and use the ste
 
 ## Ex3
 In this exercise we will move forward in time to the next stereo pair and match the left image to the previous left image and run PnP using RANSAC iterations to estimate the relative motion. We will also use the extra information - we now have two stereo pairs - to reject (almost all of) the remaining outliers.
-
+![sequential matching example.png](VAN_ex%2Fmedia%2Fsequential%20matching%20example.png)
 ![initial trajectory](VAN_ex/media/trajectory.png)
 
 ## Ex4
