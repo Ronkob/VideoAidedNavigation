@@ -1,3 +1,5 @@
+import pickle
+
 import gtsam
 import numpy as np
 from VAN_ex.code.Ex4.ex4 import TracksDB
@@ -63,3 +65,13 @@ class BundleAdjustment:
         for i in range(len(keyframes) - 1):
             bundle_windows.append(BundleWindow.Bundle(keyframes[i], keyframes[i + 1]))
         return bundle_windows
+
+    def serialize(self, file_name):
+        with open(file_name, 'wb') as file:
+            pickle.dump(self, file)
+
+    @staticmethod
+    def deserialize(file_name):
+        with open(file_name, 'rb') as file:
+            return pickle.load(file)
+

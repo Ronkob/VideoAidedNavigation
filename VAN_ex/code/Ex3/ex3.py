@@ -295,7 +295,7 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers):
     N1, p, eps, sum_outliers, sum_inliers = 0, 0.999, 0.99, 0, 0  # To bound number of iterations
     max_iterations = estimate_iterations(p, eps)
 
-    while eps != 0 and (N1 < max_iterations) and N1 < MAX_RANSAC_ITERATIONS:
+    while eps != 0 and (N1 < estimate_iterations(p, eps)) and N1 < MAX_RANSAC_ITERATIONS:
         random_idx = np.random.choice(len(pair0_p3d), size=PNP_POINTS, replace=False)  # Random sample 4 points
         left1_ext_mat = calc_ext_mat_from_sample_idxs(random_idx, left1_inliers, pair0_p3d, flag=cv2.SOLVEPNP_P3P)
         # if AP3P fails, try again
@@ -317,7 +317,6 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers):
         eps = min(sum_outliers / (sum_inliers + sum_outliers), 0.99)
         if eps == 0:
             print("eps is zero")
-        max_iterations = estimate_iterations(p, eps)
 
     # Refinement
     # best_ext_mat, best_supporters = refine_ransac(best_supporters, left1_inliers, right1_inliers, pair0_p3d, iters=1)
