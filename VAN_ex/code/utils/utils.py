@@ -101,7 +101,7 @@ def significance_test(matches, ratio):
     return accepted_matches, rejected_matches
 
 
-def match(desc1, desc2):
+def match_significance(desc1, desc2):
     """
     Match the two descriptors list.
     :param desc1: List of descriptors from Image1.
@@ -111,16 +111,25 @@ def match(desc1, desc2):
     brute_force = cv2.BFMatcher(normType=cv2.NORM_HAMMING)
     matches = brute_force.knnMatch(desc1, desc2, k=2)
     matches, _ = significance_test(matches, RATIO)
-    return np.array(matches)
+    return matches
 
 
-def get_matches(img1, img2):
+def match_bf(desc1, desc2):
+    brute_force = cv2.BFMatcher(normType=cv2.NORM_HAMMING, crossCheck=True)
+    matches = brute_force.match(desc1, desc2)
+    return matches
+
+
+def get_matches(img1, img2, significance=False):
     """
     Returns matches from 2 images.
     """
     algorithm = ALGORITHM
     left_image_kp, left_image_desc, right_image_kp, right_image_desc = detect_and_extract(algorithm, img1, img2)
-    matches = match(left_image_desc, right_image_desc)
+    if significance:
+        matches = match_significance(left_image_desc, right_image_desc)
+    else:
+        matches = match_bf(left_image_desc, right_image_desc)
     return matches, left_image_kp, right_image_kp
 
 
@@ -144,13 +153,34 @@ def reject_matches_pattern(matches, left_image_kp, right_image_kp):
     return np.array(left_inliers), np.array(right_inliers)
 
 
-def stereo_reject(matches, left_image_kp, right_image_kp):
+def stereo_reject(matches, left_image_kp, right_image_kp, significance=False):
+    if significance:
+        return stereo_reject_knn(matches, left_image_kp, right_image_kp)
+    else:
+        return stereo_reject_bf(matches, left_image_kp, right_image_kp)
+
+
+def stereo_reject_knn(matches, left_image_kp, right_image_kp):
     """
     Use the rectified stereo pattern to reject matches, return the indexes.
     """
     inliers_idx = list()
     for i, match in enumerate(matches):
         img1_idx, img2_idx = match[0].queryIdx, match[0].trainIdx
+        x1, y1 = left_image_kp[img1_idx].pt
+        x2, y2 = right_image_kp[img2_idx].pt
+        if np.abs(y2 - y1) < DIFF:
+            inliers_idx.append(i)
+    return inliers_idx
+
+
+def stereo_reject_bf(matches, left_image_kp, right_image_kp):
+    """
+    Use the rectified stereo pattern to reject matches, return the indexes.
+    """
+    inliers_idx = list()
+    for i, match in enumerate(matches):
+        img1_idx, img2_idx = match.queryIdx, match.trainIdx
         x1, y1 = left_image_kp[img1_idx].pt
         x2, y2 = right_image_kp[img2_idx].pt
         if np.abs(y2 - y1) < DIFF:
@@ -201,7 +231,7 @@ def triangulate_points(left_mat, right_mat, left_points, right_points):
     return np.array(p3d_lst)
 
 
-def matches_to_pts(matches, left_kps, right_kps):
+def matches_to_pts_knn(matches, left_kps, right_kps):
     """
     Takes matches OpenCV objects and returns their pixels in the images.
     """
@@ -211,6 +241,15 @@ def matches_to_pts(matches, left_kps, right_kps):
         right_inliers.append(right_kps[match[0].trainIdx].pt)
     return np.array(left_inliers), np.array(right_inliers)
 
+def matches_to_pts_bf(matches, left_kps, right_kps):
+    """
+    Takes matches OpenCV objects and returns their pixels in the images.
+    """
+    left_inliers, right_inliers = list(), list()
+    for match in matches:
+        left_inliers.append(left_kps[match.queryIdx].pt)
+        right_inliers.append(right_kps[match.trainIdx].pt)
+    return np.array(left_inliers), np.array(right_inliers)
 
 def display_point_cloud(first_cloud, second_claud, txt, elev=60, azim=10):
     """

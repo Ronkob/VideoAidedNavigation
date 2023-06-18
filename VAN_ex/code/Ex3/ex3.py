@@ -27,7 +27,7 @@ def rodriguez_to_mat(rvec, tvec):
     return np.hstack((rot, tvec))
 
 
-def find_matching_kps(left_matches, matches0, matches1):
+def find_matching_kps_knn(left_matches, matches0, matches1):
     """
     Receives matches between pair0, pair1 and left0_left1, and returns all
     matches of pair0 and pair1 which have a match in the other pair.
@@ -39,6 +39,26 @@ def find_matching_kps(left_matches, matches0, matches1):
             pairs0.append(matches0[left0_kp_idx])
             pairs1.append(matches1[left1_kp_idx])
     return np.array(pairs0), np.array(pairs1)
+
+
+def find_matching_kps_bf(left_matches, matches0, matches1):
+    """
+    Receives matches between pair0, pair1 and left0_left1, and returns all
+    matches of pair0 and pair1 which have a match in the other pair.
+    """
+    pairs0, pairs1 = list(), list()
+    for match in left_matches:
+        left0_kp_idx, left1_kp_idx = match.queryIdx, match.trainIdx
+        if left0_kp_idx in matches0 and left1_kp_idx in matches1:
+            pairs0.append(matches0[left0_kp_idx])
+            pairs1.append(matches1[left1_kp_idx])
+    return np.array(pairs0), np.array(pairs1)
+
+
+def find_matching_kps(left_matches, matches0, matches1, significance=True):
+    if significance:
+        return find_matching_kps_knn(left_matches, matches0, matches1)
+    return find_matching_kps_bf(left_matches, matches0, matches1)
 
 
 def create_point_cloud(idx):
@@ -223,14 +243,17 @@ def plot_matches_and_supporters(left0, left1, left0_inliers, left1_inliers, supp
     plt.show()
 
 
-def get_pair_matches(left_image, right_image):
+def get_pair_matches(left_image, right_image, significance=True):
     """
     Calculates all matches and other needed values for a given pair index.
     """
-    matches, left_image_kp, right_image_kp = utils.get_matches(left_image, right_image)
-    inliers_idxs = utils.stereo_reject(matches, left_image_kp, right_image_kp)
-    pair0_dict = {matches[idx][0].queryIdx: idx for idx in inliers_idxs}
-    return left_image_kp, matches, pair0_dict, right_image_kp
+    matches, left_image_kp, right_image_kp = utils.get_matches(left_image, right_image, significance=significance)
+    inliers_idxs = utils.stereo_reject(matches, left_image_kp, right_image_kp, significance=significance)
+    if significance:
+        pair0_dict = {matches[idx][0].queryIdx: idx for idx in inliers_idxs}
+    else:
+        pair0_dict = {matches[idx].queryIdx: idx for idx in inliers_idxs}
+    return left_image_kp, np.array(matches), pair0_dict, right_image_kp
 
 
 def plot_relative_camera_positions(left1_ext_mat, mat1, mat2):
@@ -242,17 +265,17 @@ def plot_relative_camera_positions(left1_ext_mat, mat1, mat2):
     return left1_cam
 
 
-def find_matching_features_successive(left0_image, right0_image, left1_image, right1_image):
+def find_matching_features_successive(left0_image, right0_image, left1_image, right1_image, significance=False):
     # Section 3.2 - Match features between the two left images (left0 and left1)
-    left0_image_kp, matches0, pair0_dict, right0_image_kp = get_pair_matches(left0_image, right0_image)
-    left1_image_kp, matches1, pair1_dict, right1_image_kp = get_pair_matches(left1_image, right1_image)
-    left_successive_matches, _, _ = utils.get_matches(left0_image, left1_image)
+    left0_image_kp, matches0, pair0_dict, right0_image_kp = get_pair_matches(left0_image, right0_image, significance)
+    left1_image_kp, matches1, pair1_dict, right1_image_kp = get_pair_matches(left1_image, right1_image, significance)
+    _, left_successive_matches, _, _ = get_pair_matches(left0_image, left1_image, significance)
 
     # Section 3.3 - calculate the extrinsic camera matrix [R|t] of left1.
-    pairs0, pairs1 = find_matching_kps(left_successive_matches, pair0_dict, pair1_dict)
+    pairs0, pairs1 = find_matching_kps(left_successive_matches, pair0_dict, pair1_dict, significance=significance)
     pair0_matches, pair1_matches = matches0[pairs0], matches1[pairs1]
-    left0_inliers, right0_inliers = utils.matches_to_pts(pair0_matches, left0_image_kp, right0_image_kp)
-    left1_inliers, right1_inliers = utils.matches_to_pts(pair1_matches, left1_image_kp, right1_image_kp)
+    left0_inliers, right0_inliers = utils.matches_to_pts_bf(pair0_matches, left0_image_kp, right0_image_kp)
+    left1_inliers, right1_inliers = utils.matches_to_pts_bf(pair1_matches, left1_image_kp, right1_image_kp)
     pictures = (left0_image, left1_image)
     inliers = (left0_inliers, right0_inliers, left1_inliers, right1_inliers)
     return pictures, inliers
@@ -328,7 +351,8 @@ def ransac_pnp(pair0_p3d, left1_inliers, right1_inliers):
 # supporters_idx = consensus_supporters()
 def refine_ransac(best_supporters, left1_inliers, right1_inliers, pair0_p3d, iters=1):
     for _ in range(iters):
-        left_ext_mat = calc_ext_mat_from_sample_idxs(best_supporters, left1_inliers, pair0_p3d, flag=cv2.SOLVEPNP_ITERATIVE)
+        left_ext_mat = calc_ext_mat_from_sample_idxs(best_supporters, left1_inliers, pair0_p3d,
+                                                     flag=cv2.SOLVEPNP_ITERATIVE)
         left_T, right_T = calculate_camera_proj_matrices(left_ext_mat)
         supporters = find_consensus_supporters(pair0_p3d, left_T, left1_inliers, right_T, right1_inliers)
         if len(supporters) >= len(best_supporters):
@@ -357,6 +381,7 @@ def track_movement_successive(idxs):
     inliers = (left0_inliers[supporters_idx], right0_inliers[supporters_idx], left1_inliers[supporters_idx],
                right1_inliers[supporters_idx])
     return best_ext_mat, inliers, len(supporters_idx) / len(left0_inliers) * 100
+
 
 def one_run_over_ex3(idxs):
     """
@@ -414,7 +439,7 @@ def get_ground_truth_transformations(left_cam_trans_path=CAM_TRAJ_PATH, movie_le
     with open(left_cam_trans_path) as f:
         lines = f.readlines()
         print("Number of lines: ", len(lines))
-    for i in range(movie_len):
+    for i in range(movie_len + 1):
         left_mat = np.array(lines[i].split(" "))[:-1].astype(float).reshape((3, 4))
         T_ground_truth_arr.append(left_mat)
     return T_ground_truth_arr
@@ -428,7 +453,7 @@ def track_movement_all_movie():
     """
     T_arr = [ex2_utils.read_cameras()[1]]
     start_pos = 0
-    for idx in range(start_pos, MOVIE_LENGTH - 1):
+    for idx in range(start_pos, MOVIE_LENGTH):
         # print status of loop execution every 5 iterations
         if idx % 5 == 0:
             print("iteration number: ", idx)
@@ -452,13 +477,14 @@ def run_ex3():
     Runs all exercise 3 sections.
     """
     # Sections 3.1 - 3.5
-    one_run_over_ex3([0, 1])
+    # one_run_over_ex3([0, 1])
 
-    # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.  # track_movement_all_movie()
+    # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.
+    track_movement_all_movie()
 
 
 def main():
-    # run_ex3()
+    run_ex3()
     T_arr = np.load("T_arr.npy")
     ground_truth_T_arr = get_ground_truth_transformations()
     ground_truth_pos = calculate_camera_trajectory(ground_truth_T_arr)
