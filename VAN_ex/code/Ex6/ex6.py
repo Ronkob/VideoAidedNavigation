@@ -41,8 +41,9 @@ def q6_1(T_arr, tracks_db):
     keys = gtsam.KeyVector()
     keys.append(gtsam.symbol('c', c0))
     keys.append(gtsam.symbol('c', ck))
+    # rel_cov = marginals.jointMarginalCovariance(keys).at(keys[1], keys[1])  # Cov of the relative motion
     marg_cov_mat = marginals.jointMarginalInformation(keys).at(keys[1], keys[1])  # Conditioning on the second keyframe
-    rel_cov = np.linalg.inv(marg_cov_mat)  # Cov of the relative motion
+    rel_cov = np.linalg.inv(marg_cov_mat)  # Cov of the relative motion, as seen in lecture
 
     # Calculate the relative pose between the first two keyframes
     pose_c0 = result.atPose3(gtsam.symbol('c', c0))
@@ -69,7 +70,6 @@ def q6_2(T_arr, tracks_db, ba):
     plot_scene_from_above(keyframes_pose_graph.initial_estimates, question='q6_2 initial poses')
 
     # Plot the locations without covariances for the keyframe locations resulting from the optimization.
-    # opt_poses = gtsam.utilities.extractPose3(keyframes_pose_graph.result).reshape(-1, 4, 3).transpose(0, 2, 1)
     plot_scene_from_above(keyframes_pose_graph.result, question='q6_2 optimized poses')
 
     # Print the error of the factor graph before and after optimization
@@ -93,8 +93,8 @@ def run_ex6():
     ba = None
     # ba = BundleAdjustment.deserialize(BA_PATH)
 
-    # q6_1(rel_t_arr, tracks_db)
-    q6_2(rel_t_arr, tracks_db, ba)
+    q6_1(rel_t_arr, tracks_db)
+    # q6_2(rel_t_arr, tracks_db, ba)
 
 
 def main():

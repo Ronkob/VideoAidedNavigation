@@ -23,15 +23,15 @@ class Bundle:
         self.result = None
 
     def get_marginals(self):
-        print("Getting marginals...")
+        # print("Getting marginals...")
         # print(f"Graph: {self.graph}")
         # print(f"Result: {self.result}")
 
         if self.result:
-            print("Computing marginals from result...")
+            # print("Computing marginals from result...")
             marginals = gtsam.Marginals(self.graph, self.result)
         else:
-            print("Computing marginals from initial estimates...")
+            # print("Computing marginals from initial estimates...")
             marginals = gtsam.Marginals(self.graph, self.initial_estimates)
         return marginals
 
@@ -66,7 +66,7 @@ class Bundle:
 
             # Add a prior factor just for first camera pose
             if frame_id == self.frames_idxs[0]:  # Constraints for first frame
-                sigmas = np.array([(1 * np.pi / 180) ** 2] * 3 + [1e-1, 3e-2, 1.0])
+                sigmas = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]) ** 7
                 cov = gtsam.noiseModel.Diagonal.Sigmas(sigmas=sigmas)
                 factor = gtsam.PriorFactorPose3(symbol, pose, cov)
                 self.prior_factor = factor

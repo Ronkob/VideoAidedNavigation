@@ -23,9 +23,9 @@ class PoseGraph:
         self.choose_keyframes()
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
 
-        self.calculate_rel_cov_and_poses()
-        # with open('relatives.pkl', 'rb') as file:  # When already saved
-        #     self.rel_covs, self.rel_poses = pickle.load(file)
+        # self.calculate_rel_cov_and_poses()
+        with open('relatives.pkl', 'rb') as file:  # When already saved
+            self.rel_covs, self.rel_poses = pickle.load(file)
 
         self.create_pose_graph()
 
@@ -50,8 +50,7 @@ class PoseGraph:
                 traceback.print_exc()
                 # exit(1)
                 continue
-            # marg_cov_mat = marginals.jointMarginalCovariance(keys).at(keys[1], keys[1])
-            # self.rel_covs.append(marg_cov_mat)
+            # rel_cov = marginals.jointMarginalCovariance(keys).at(keys[1], keys[1])
             joint_information_mat = marginals.jointMarginalInformation(keys).at(keys[1], keys[1])
             rel_cov = np.linalg.inv(joint_information_mat)
             self.rel_covs.append(rel_cov)
@@ -97,7 +96,7 @@ class PoseGraph:
         self.initial_estimates.insert(init_cam, init_pose)
 
         # Add a prior factor to graph
-        sigmas = np.array([(1 * np.pi / 180) ** 2] * 3 + [1e-1, 3e-2, 1.0])
+        sigmas = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]) ** 7
         pose_cov = gtsam.noiseModel.Diagonal.Sigmas(sigmas=sigmas)
         factor = gtsam.PriorFactorPose3(init_cam, init_pose, pose_cov)
         self.graph.add(factor)
