@@ -6,9 +6,10 @@ import numpy as np
 from gtsam.utils import plot
 import matplotlib.pyplot as plt
 
+from VAN_ex.code.BundleAdjustment.BundleAdjustment import BundleAdjustment
 from VAN_ex.code.Ex3.ex3 import calculate_relative_transformations
 from VAN_ex.code.Ex4.ex4 import TracksDB, Track
-from VAN_ex.code.Ex5.ex5 import plot_scene_3d, plot_scene_from_above
+from VAN_ex.code.Ex5.ex5 import plot_scene_3d, plot_scene_from_above, BA_PATH
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph
 from VAN_ex.code.utils import projection_utils, auxilery_plot_utils
@@ -53,7 +54,7 @@ def q6_1(T_arr, tracks_db):
     print("Relative covariance between the first two keyframes:", rel_cov)
 
 
-def q6_2(T_arr, tracks_db):
+def q6_2(T_arr, tracks_db, ba):
     """
     Build a Pose Graph of the keyframes. We add the relative motion
     estimated previously as constraints to that graph with the correct uncertainty
@@ -89,9 +90,11 @@ def run_ex6():
     tracks_db = TracksDB.deserialize(DB_PATH)
     T_arr = np.load(T_ARR_PATH)
     rel_t_arr = calculate_relative_transformations(T_arr)
+    ba = None
+    # ba = BundleAdjustment.deserialize(BA_PATH)
 
     # q6_1(rel_t_arr, tracks_db)
-    q6_2(rel_t_arr, tracks_db)
+    q6_2(rel_t_arr, tracks_db, ba)
 
 
 def main():

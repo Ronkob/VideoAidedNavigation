@@ -502,7 +502,7 @@ def run_sequence(start_frame, end_frame):
     # frames = [i for i in range(start_frame, end_frame)]
     # plot_inliers_per_frame(inliers_precent_lst, frames)  # q4.5
     # db.remove_short_tracks(short=2)
-    # db.serialize(DB_PATH)
+    db.serialize(DB_PATH)
     return db
 
 
@@ -512,7 +512,7 @@ def run_ex4():
     """
     np.random.seed(7)
     tracks_db = None
-    tracks_db = run_sequence(START_FRAME, 100)  # Build the tracks database
+    tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
     if tracks_db is None:
         tracks_db = TracksDB.deserialize(DB_PATH)
 

@@ -17,6 +17,7 @@ from VAN_ex.code.BundleAdjustment import BundleAdjustment
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
+BA_PATH = os.path.join('..', 'Ex5', 'ba.pkl')
 old_k, m1, m2 = ex3_utils.k, ex3_utils.m1, ex3_utils.m2
 
 
@@ -109,6 +110,8 @@ def q5_3(tracks_db, T_arr):
     bundle_adjustment = BundleAdjustment.BundleAdjustment(tracks_db, T_arr)
     bundle_adjustment.choose_keyframes(type='end_frame', parameter=200)
     bundle_adjustment.solve()
+    bundle_adjustment.serialize(BA_PATH)
+
 
     # convert relative poses to absolute poses
     cameras, landmarks = bundle_adjustment.get_relative_poses()

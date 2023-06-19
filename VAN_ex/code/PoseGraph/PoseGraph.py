@@ -116,7 +116,7 @@ class PoseGraph:
             prev_cam = camera
 
     def choose_keyframes(self):
-        FRAC = 0.8
+        FRAC = 0.6
         while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
             tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
             end_frames = sorted([self.tracks_db.tracks[track].frame_ids[-1] for track in tracks_in_keyframe])
