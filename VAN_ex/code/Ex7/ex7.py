@@ -31,7 +31,7 @@ def q7_1(pose_graph: PoseGraph, idx: int):
 
     for i in range(idx):
         ci_pose = pose_graph.result.atPose3(gtsam.symbol('c', i))
-
+    # HELLO
 
 
 
