@@ -23,23 +23,26 @@ In this exercise we will develop the feature-tracking system, which is a key-com
 In this exercise we explore a geometric outlier rejection policy and use the stereo matches for triangulation to produce a 3D point cloud.
 
 ![image](https://github.com/Dor890/SLAM/assets/64433958/98a48ce7-afca-4daf-bb8f-b344a3d90ea7)
-![track_cut_around_3132.gif](VAN_ex%2Fcode%2FEx4%2Ftrack_cut_around_3132.gif)
+![dev_histogram.png](VAN_ex%2Fmedia%2Fdev_histogram.png)
+
 ## Ex3
 In this exercise we will move forward in time to the next stereo pair and match the left image to the previous left image and run PnP using RANSAC iterations to estimate the relative motion. We will also use the extra information - we now have two stereo pairs - to reject (almost all of) the remaining outliers.
-
-<img src=VAN_ex/media/trajectory.png width="500" height="" alt="initial trajectory">
+![sequential matching example.png](VAN_ex%2Fmedia%2Fsequential%20matching%20example.png)
+![initial trajectory](VAN_ex/media/trajectory.png)
 
 ## Ex4
 In this exercise we extend the feature tracking across multiple frames and implement a suitable database for the tracked features. We use the matches we got in exercise 3 with careful bookkeeping to keep track (no pun intended) of which feature was tracked across what frame. This information will be important in future stages when we will build the Bundle Adjustment / Loop Closure optimization.
 
-<img src=VAN_ex/code/Ex4/run.gif width="500" height="" alt="">
+![run.gif](VAN_ex%2Fmedia%2Frun.gif)
 
 ## Ex5
 In this exercise we run bundle adjustment to leverage the information across multiple images as well as taking a probabilistic approach to the problem. The results of the previous exercises will be used as initial starting point for the bundle optimization.
 To keep the computation cost down we will run the optimization on small segments of consecutive images. We use the GTSAM optimization library to handle the mathematical details of the process.
 The result of the computation is an accurate estimation of the local trajectory of the vehicle and can be used as Visual Odometry.
 
-![image](https://github.com/Dor890/SLAM/assets/64433958/8b1c6fcb-61f1-4126-8c2d-e8214905d232)
+![q5_2 3d scene.png](VAN_ex%2Fmedia%2Fq5_2%203d%20scene.png)
+
+![q5_3 trajectory.png](VAN_ex%2Fmedia%2Fq5_3%20trajectory.png)
 
 ## Ex6
 Previously, We solved small Bundle Adjustment problems and used the results to calculate relative transformations between consecutive keyframes.
@@ -49,7 +52,8 @@ reprojection constraints (only pose-pose constraints) and only a subset of the f
 In this exercise we prepare for implementing Loop Closure, by extracting relative pose constraint from Bundle optimization and building the Pose Graph.
 
 ![image](https://github.com/Dor890/SLAM/assets/64433958/0814ccbd-9fdf-4a93-a69c-a0271450f175)
-
+![q6_2 optimized poses scene from above.png](VAN_ex%2Fmedia%2Fq6_2%20optimized%20poses%20scene%20from%20above.png)
+![q6_2 optimized poses with cov scene from above.png](VAN_ex%2Fmedia%2Fq6_2%20optimized%20poses%20with%20cov%20scene%20from%20above.png)
 
 ## Ex7
 In this exercise, we will recognize that the current location of the vehicle is potentially similar to some past location and initiate a search for the exact relative pose between two frames.

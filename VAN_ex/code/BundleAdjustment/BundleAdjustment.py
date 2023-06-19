@@ -1,3 +1,5 @@
+import pickle
+
 import gtsam
 import numpy as np
 from VAN_ex.code.Ex4.ex4 import TracksDB
@@ -25,7 +27,7 @@ class BundleAdjustment:
             self.keyframes = key_frames
 
         elif type == 'end_frame':
-            FRAC = 0.85
+            FRAC = 0.6
             self.keyframes.append(0)
             while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
                 tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
@@ -63,3 +65,13 @@ class BundleAdjustment:
         for i in range(len(keyframes) - 1):
             bundle_windows.append(BundleWindow.Bundle(keyframes[i], keyframes[i + 1]))
         return bundle_windows
+
+    def serialize(self, file_name):
+        with open(file_name, 'wb') as file:
+            pickle.dump(self, file)
+
+    @staticmethod
+    def deserialize(file_name):
+        with open(file_name, 'rb') as file:
+            return pickle.load(file)
+

@@ -3,12 +3,14 @@ import pickle
 import numpy as np
 
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
+from VAN_ex.code.utils import utils
 
 
 class PoseGraph:
     """
     Class represents the factor graph which is build from the keyframes.
     """
+
     def __init__(self, tracks_db, T_arr):
         self.keyframes = [0]
         self.graph = gtsam.NonlinearFactorGraph()
@@ -27,11 +29,12 @@ class PoseGraph:
 
         self.create_pose_graph()
 
+    @utils.measure_time
     def calculate_rel_cov_and_poses(self):
         """
         Calculate relative poses and covariances between keyframes.
         """
-        for bundle in self.bundle_windows[:100]:
+        for bundle in self.bundle_windows:
             first_kf, second_kf = bundle.frames_idxs[0], bundle.frames_idxs[-1]
             keys = gtsam.KeyVector()
             keys.append(gtsam.symbol('c', first_kf))
@@ -104,7 +107,7 @@ class PoseGraph:
 
         for i in range(len(self.rel_covs)):
             # Add relative pose factor
-            camera = gtsam.symbol('c', i+1)
+            camera = gtsam.symbol('c', i + 1)
             cov = gtsam.noiseModel.Gaussian.Covariance(self.rel_covs[i])
             factor = gtsam.BetweenFactorPose3(prev_cam, camera, self.rel_poses[i], cov)
             self.graph.add(factor)
