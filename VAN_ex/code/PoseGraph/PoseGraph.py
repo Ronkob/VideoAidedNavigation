@@ -4,6 +4,7 @@ import numpy as np
 
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
 from VAN_ex.code.utils import utils
+from VAN_ex.code.PoseGraph.VertexGraph import VertexGraph
 
 
 class PoseGraph:
@@ -28,6 +29,9 @@ class PoseGraph:
             self.rel_covs, self.rel_poses = pickle.load(file)
 
         self.create_pose_graph()
+
+        self.vertex_graph = VertexGraph(len(self.keyframes), self.rel_covs)
+
 
     @utils.measure_time
     def calculate_rel_cov_and_poses(self):
@@ -127,6 +131,14 @@ class PoseGraph:
                 self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
                 break
         print('First 10 Keyframes: ', self.keyframes[:10])
+
+
+    def shortestPath(cn_symbol, ci_symbol):
+        """
+        Find the shortest path between two vertices in the graph.
+        """
+
+
 
     @staticmethod
     def create_bundle_windows(keyframes):

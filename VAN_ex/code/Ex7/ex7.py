@@ -17,7 +17,7 @@ DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
 
 
-def q7_1(pose_graph: PoseGraph, idx: int):
+def q7_1(pose_graph: PoseGraph, n_idx: int):
     """
     Detect Loop Closure Candidates.
     a. Relative Covariance - find the shortest path from c_n to c_i and sum the covariances along the path to get an
@@ -27,11 +27,28 @@ def q7_1(pose_graph: PoseGraph, idx: int):
     Choose a threshold to determine if the candidate advances to the next (expensive) stage.
     """
     candidate_frames = []
-    cn_pose = pose_graph.result.atPose3(gtsam.symbol('c', idx))
+    cn_symbol = gtsam.symbol('c', n_idx)
+    cn_pose = pose_graph.result.atPose3(cn_symbol)
 
-    for i in range(idx):
-        ci_pose = pose_graph.result.atPose3(gtsam.symbol('c', i))
-    # HELLO
+    for i in range(n_idx):
+        ci_symbol = gtsam.symbol('c', i)
+        ci_pose = pose_graph.result.atPose3(ci_symbol)
+        # Find shortest path from c_n to c_i using dijkstra algorithm
+        shortest_path = pose_graph.vertex_graph.find_shortest_path(n_idx, i)
+        # Sum the covariances along the path to get an estimate of the relative covariance
+        rel_cov = np.zeros((6, 6))
+        for j in range(len(shortest_path) - 1):
+            rel_cov += pose_graph.rel_covs[j]
+        # Calculate Mahalanobis distance
+        mahalanobis_dist = np.sqrt(np.dot(np.dot((cn_pose.between(ci_pose).matrix() - np.eye(4)).T, rel_cov),
+                                            cn_pose.between(ci_pose).matrix() - np.eye(4)))
+        # Choose a threshold to determine if the candidate advances to the next (expensive) stage
+        if mahalanobis_dist < 0.5:
+            candidate_frames.append(i)
+
+    return candidate_frames
+
+
 
 
 
@@ -79,7 +96,7 @@ def run_ex7():
 
     pose_graph = PoseGraph(tracks_db, T_arr)
 
-    # For each key frame 𝑐𝑛 in the pose graph loop over previous keyframes 𝑐𝑖, 𝑖 < 𝑛, and perform
+    # For each key frame cn in the pose graph loop over previous keyframes ci, i < n, and perform
     # steps 7.1-7.4:
     for i in range(1, len(pose_graph.keyframes)):
         # Detect Loop Closure Candidates
