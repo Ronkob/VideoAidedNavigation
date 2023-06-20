@@ -15,6 +15,7 @@ from VAN_ex.code.utils import projection_utils, auxilery_plot_utils
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
+MAHAL_THRESH = 0.5
 
 
 def q7_1(pose_graph: PoseGraph, n_idx: int):
@@ -23,7 +24,7 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
     a. Relative Covariance - find the shortest path from c_n to c_i and sum the covariances along the path to get an
      estimate of the relative covariance.
     b. Detect Possible Candidates - choose the most likely candidate to be close to the pose c_n by applying a
-    Mahalanobis distance test with 𝑐_n,i - the relative pose between 𝑐_n and 𝑐_i.
+    Mahalanobis distance test with c_n,i - the relative pose between c_n and c_i.
     Choose a threshold to determine if the candidate advances to the next (expensive) stage.
     """
     candidate_frames = []
@@ -33,23 +34,22 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
     for i in range(n_idx):
         ci_symbol = gtsam.symbol('c', i)
         ci_pose = pose_graph.result.atPose3(ci_symbol)
+
         # Find shortest path from c_n to c_i using dijkstra algorithm
         shortest_path = pose_graph.vertex_graph.find_shortest_path(n_idx, i)
+
         # Sum the covariances along the path to get an estimate of the relative covariance
-        rel_cov = np.zeros((6, 6))
-        for j in range(len(shortest_path) - 1):
-            rel_cov += pose_graph.rel_covs[j]
+        rel_cov = pose_graph.vertex_graph.calc_cov_along_path(shortest_path, pose_graph.rel_covs)
+
         # Calculate Mahalanobis distance
         mahalanobis_dist = np.sqrt(np.dot(np.dot((cn_pose.between(ci_pose).matrix() - np.eye(4)).T, rel_cov),
                                             cn_pose.between(ci_pose).matrix() - np.eye(4)))
+
         # Choose a threshold to determine if the candidate advances to the next (expensive) stage
-        if mahalanobis_dist < 0.5:
+        if mahalanobis_dist < MAHAL_THRESH:
             candidate_frames.append(i)
 
     return candidate_frames
-
-
-
 
 
 def q7_2():
