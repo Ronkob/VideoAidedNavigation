@@ -1,9 +1,9 @@
 import os.path
 import time
+import scipy
 from typing import Iterable
 
 import cv2
-import scipy
 import numpy as np
 import matplotlib.pyplot as plt
 import gtsam.utils.plot as gtsam_plot
@@ -517,7 +517,6 @@ def calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov):
     Calculate the mahalanobis distance between two poses.
     """
     rel_cov_inv = np.linalg.inv(rel_cov)
-    rel_cov_inv_sqrt = np.linalg.inv(scipy.linalg.sqrtm(rel_cov_inv))
     rel_pose = cn_pose.between(ci_pose)
     rel_pose_vec = gtsam.Pose3.Logmap(rel_pose)
     return np.sqrt(rel_pose_vec.T @ rel_cov_inv @ rel_pose_vec)

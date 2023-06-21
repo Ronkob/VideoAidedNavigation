@@ -39,30 +39,9 @@ class PoseGraph:
         Calculate relative poses and covariances between keyframes.
         """
         for bundle in self.bundle_windows:
-            first_kf, second_kf = bundle.frames_idxs[0], bundle.frames_idxs[-1]
-            keys = gtsam.KeyVector()
-            keys.append(gtsam.symbol('c', first_kf))
-            keys.append(gtsam.symbol('c', second_kf))
-            bundle.create_graph_v2(self.T_arr, self.tracks_db)
-            bundle.optimize()
-            try:
-                marginals = bundle.get_marginals()
-            except:
-                print("Failed to get marginals for bundle window: ", bundle.frames_idxs)
-                # print the exception traceback
-                import traceback
-                traceback.print_exc()
-                # exit(1)
-                continue
-            # rel_cov = marginals.jointMarginalCovariance(keys).at(keys[1], keys[1])
-            joint_information_mat = marginals.jointMarginalInformation(keys).at(keys[1], keys[1])
-            rel_cov = np.linalg.inv(joint_information_mat)
+            rel_cov, rel_pos = bundle.rel_cov_and_pos_for_bundle(bundle)
             self.rel_covs.append(rel_cov)
-
-            first_pose = bundle.result.atPose3(gtsam.symbol('c', first_kf))
-            second_pose = bundle.result.atPose3(gtsam.symbol('c', second_kf))
-            rel_pose = first_pose.between(second_pose)
-            self.rel_poses.append(rel_pose)
+            self.rel_poses.append(rel_pos)
 
         with open('relatives.pkl', 'wb') as file:
             pickle.dump((self.rel_covs, self.rel_poses), file)
@@ -132,13 +111,32 @@ class PoseGraph:
                 break
         print('First 10 Keyframes: ', self.keyframes[:10])
 
+    def rel_cov_and_pos_for_bundle(self, bundle):
+        first_kf, second_kf = bundle.frames_idxs[0], bundle.frames_idxs[-1]
+        keys = gtsam.KeyVector()
+        keys.append(gtsam.symbol('c', first_kf))
+        keys.append(gtsam.symbol('c', second_kf))
+        bundle.create_graph_v2(self.T_arr, self.tracks_db)
+        bundle.optimize()
+        try:
+            marginals = bundle.get_marginals()
+        except:
+            print("Failed to get marginals for bundle window: ",
+                  bundle.frames_idxs)
+            # print the exception traceback
+            import traceback
+            traceback.print_exc()
+            # exit(1)
+            return
+        # rel_cov = marginals.jointMarginalCovariance(keys).at(keys[1], keys[1])
+        joint_information_mat = marginals.jointMarginalInformation(keys).at(
+            keys[1], keys[1])
+        rel_cov = np.linalg.inv(joint_information_mat)
 
-    def shortestPath(cn_symbol, ci_symbol):
-        """
-        Find the shortest path between two vertices in the graph.
-        """
-
-
+        first_pose = bundle.result.atPose3(gtsam.symbol('c', first_kf))
+        second_pose = bundle.result.atPose3(gtsam.symbol('c', second_kf))
+        rel_pose = first_pose.between(second_pose)
+        return rel_cov, rel_pose
 
     @staticmethod
     def create_bundle_windows(keyframes):
@@ -146,3 +144,4 @@ class PoseGraph:
         for i in range(len(keyframes) - 1):
             bundle_windows.append(Bundle(keyframes[i], keyframes[i + 1]))
         return bundle_windows
+

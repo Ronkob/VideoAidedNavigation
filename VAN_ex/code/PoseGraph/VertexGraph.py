@@ -4,13 +4,12 @@ import numpy as np
 
 class Edge:
     """
-    This class represents an edge in the vertex graph.
+    This class is responsible for the vertex in the vertex graph.
     """
     def __init__(self, s, t, cov=None):
         self.s = s
         self.t = t
         self.cov = cov
-        self.weight = None
         if self.cov:
             self.weight = np.linalg.det(cov)
 
@@ -37,7 +36,7 @@ class VertexGraph:
 
     def find_shortest_path(self, n, i):
         """
-        Find shortest path from c_n to c_i using Dijkstra algorithm.
+        Find shortest path from c_i to c_n using Dijkstra algorithm.
         """
         dists = [float('inf') for _ in range(len(self.size))]
         dists[i] = 0
@@ -55,9 +54,9 @@ class VertexGraph:
 
             for v in range(self.size):
                 if self.adj_mat[min_dist_vertex, v] and visited[v] is False:
-                    if dists[min_dist_vertex] + self.adj_mat[min_dist_vertex, v].dist < dists[v]:
+                    if dists[min_dist_vertex] + self.adj_mat[min_dist_vertex, v].weight < dists[v]:
                         # Update the distances based on neighbors of min_dist_vertex
-                        dists[v] = dists[min_dist_vertex] + self.adj_mat[min_dist_vertex, v].dist
+                        dists[v] = dists[min_dist_vertex] + self.adj_mat[min_dist_vertex, v].cn_pose, ci_pose, rel_cov
                         prevs[v] = min_dist_vertex
 
         # Calculate the min path from c_n to c_i
@@ -71,6 +70,13 @@ class VertexGraph:
         path.reverse()
 
         return path
+
+    def add_new_edge(self, s, t, cov):
+        """
+        Add a new edge to the vertex graph.
+        """
+        self.adj_mat[s, t] = Edge(s, t, cov)
+
 
     @staticmethod
     def calc_cov_along_path(path, rel_covs):
