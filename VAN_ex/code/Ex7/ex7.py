@@ -6,16 +6,17 @@ import numpy as np
 from gtsam.utils import plot
 import matplotlib.pyplot as plt
 
-from VAN_ex.code.Ex3.ex3 import calculate_relative_transformations
+from VAN_ex.code.Ex3.ex3 import calculate_relative_transformations, track_movement_successive
 from VAN_ex.code.Ex4.ex4 import TracksDB, Track
 from VAN_ex.code.Ex5.ex5 import plot_scene_3d, plot_scene_from_above
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph
-from VAN_ex.code.utils import projection_utils, auxilery_plot_utils, utils
+from VAN_ex.code.utils import utils
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
 MAHAL_THRESH = 0.5
+MAX_CANDIDATES = 5
 
 
 def q7_1(pose_graph: PoseGraph, n_idx: int):
@@ -27,7 +28,7 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
     Mahalanobis distance test with c_n,i - the relative pose between c_n and c_i.
     Choose a threshold to determine if the candidate advances to the next (expensive) stage.
     """
-    candidate_frames = []
+    candidate_frames = dict()
     cn_symbol = gtsam.symbol('c', n_idx)
     cn_pose = pose_graph.result.atPose3(cn_symbol)
 
@@ -35,29 +36,39 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
         ci_symbol = gtsam.symbol('c', i)
         ci_pose = pose_graph.result.atPose3(ci_symbol)
 
-        # Find shortest path from c_n to c_i using dijkstra algorithm
+        # Find the shortest path from c_n to c_i using dijkstra algorithm
         shortest_path = pose_graph.vertex_graph.find_shortest_path(n_idx, i)
 
         # Sum the covariances along the path to get an estimate of the relative covariance
         rel_cov = pose_graph.vertex_graph.calc_cov_along_path(shortest_path, pose_graph.rel_covs)
 
         # Calculate Mahalanobis distance
-        mahalanobis_dist = utils.calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov)
+        mahalanobis_dist = np.sqrt(np.dot(np.dot((cn_pose.between(ci_pose).matrix() - np.eye(4)).T, rel_cov),
+                                            cn_pose.between(ci_pose).matrix() - np.eye(4)))
 
         # Choose a threshold to determine if the candidate advances to the next (expensive) stage
         if mahalanobis_dist < MAHAL_THRESH:
-            candidate_frames.append(i)
+            candidate_frames[i] = mahalanobis_dist
 
-    return candidate_frames
+    if not candidate_frames:
+        return []
+    sorted_candidates = sorted(candidate_frames.items(), key=lambda x: x[1])
+    return [item for item in sorted_candidates[:MAX_CANDIDATES]]
 
 
-def q7_2():
+def q7_2(candidates, n_idx):
     """
     Consensus Matching - perform consensus match between the two candidate frames. (See exercise 3)
     Set a threshold for the number of inliers that indicates a successful match. Note that this is
     typically a more difficult match than that of two consecutive frames
     """
-    pass
+    INLIERS_THRESH = 70
+    inliers = []
+    for candidate in candidates:
+        left_ext_mat, cur_inliers, inliers_precent = track_movement_successive([n_idx, candidate])
+        if inliers_precent > INLIERS_THRESH:
+            inliers.append(cur_inliers)
+    return inliers
 
 
 def q7_3():
@@ -99,13 +110,13 @@ def run_ex7():
     # steps 7.1-7.4:
     for i in range(1, len(pose_graph.keyframes)):
         # Detect Loop Closure Candidates
-        q7_1(pose_graph, i)
+        candidates = q7_1(pose_graph, i)
 
         # 7.2 Consensus Matching
-        # q7_2()
+        # inliers = q7_2(candidates, i)
 
         # 7.3 Relative Pose Estimation
-        # q7_3()
+        # q7_3(inliers)
 
         # 7.4 Update the Pose Graph
         # q7_4()
