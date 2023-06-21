@@ -4,14 +4,15 @@ import numpy as np
 
 class Edge:
     """
-    This class is responsible for the vertex in the vertex graph.
+    This class represents an edge in the vertex graph.
     """
     def __init__(self, s, t, cov=None):
         self.s = s
         self.t = t
         self.cov = cov
+        self.weight = None
         if self.cov:
-            self.dist = np.linalg.norm(x=(s - t), ord=1)
+            self.weight = np.linalg.det(cov)
 
 
 class VertexGraph:
@@ -36,9 +37,9 @@ class VertexGraph:
 
     def find_shortest_path(self, n, i):
         """
-        Find shortest path from c_i to c_n using Dijkstra algorithm.
+        Find shortest path from c_n to c_i using Dijkstra algorithm.
         """
-        dists = [float('inf')] * self.size
+        dists = [float('inf') for _ in range(len(self.size))]
         dists[i] = 0
         prevs = np.zeros(self.size)
         visited = [False] * self.size
@@ -47,7 +48,7 @@ class VertexGraph:
             # Find the vertex with min distance to i from the set of vertices not yet visited
             min_dist, min_dist_vertex = float('inf'), None
             for v in range(self.size):
-                # dist[v] = distance from c_n to c_v
+                # dist[v] = distance from c_v to c_n
                 if dists[v] < min_dist and visited[v] is False:
                     min_dist, min_dist_vertex = dists[v], v
             visited[min_dist_vertex] = True

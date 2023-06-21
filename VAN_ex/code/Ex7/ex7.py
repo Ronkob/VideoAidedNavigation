@@ -11,7 +11,7 @@ from VAN_ex.code.Ex4.ex4 import TracksDB, Track
 from VAN_ex.code.Ex5.ex5 import plot_scene_3d, plot_scene_from_above
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph
-from VAN_ex.code.utils import projection_utils, auxilery_plot_utils
+from VAN_ex.code.utils import projection_utils, auxilery_plot_utils, utils
 
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
@@ -42,8 +42,7 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
         rel_cov = pose_graph.vertex_graph.calc_cov_along_path(shortest_path, pose_graph.rel_covs)
 
         # Calculate Mahalanobis distance
-        mahalanobis_dist = np.sqrt(np.dot(np.dot((cn_pose.between(ci_pose).matrix() - np.eye(4)).T, rel_cov),
-                                            cn_pose.between(ci_pose).matrix() - np.eye(4)))
+        mahalanobis_dist = utils.calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov)
 
         # Choose a threshold to determine if the candidate advances to the next (expensive) stage
         if mahalanobis_dist < MAHAL_THRESH:
