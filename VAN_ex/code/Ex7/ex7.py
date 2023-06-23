@@ -13,12 +13,16 @@ from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
 from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph
 from VAN_ex.code.utils import utils
 
+from dijkstar import find_path
+
 DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
 T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
 
 MAHAL_THRESH = 0.5
-MAX_CANDIDATES = 5
+MAX_CANDIDATES = 3
 INLIERS_PREC_THRESH = 70
+
+loops_arr = []
 
 
 def q7_1(pose_graph: PoseGraph, n_idx: int):
@@ -39,10 +43,10 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
         ci_pose = pose_graph.result.atPose3(ci_symbol)
 
         # Find the shortest path from c_n to c_i using dijkstra algorithm
-        shortest_path = pose_graph.vertex_graph.find_shortest_path(n_idx, i)
+        shortest_path = find_path(pose_graph.vertex_graph, i, n_idx)
 
         # Sum the covariances along the path to get an estimate of the relative covariance
-        rel_cov = pose_graph.vertex_graph.calc_cov_along_path(shortest_path, pose_graph.rel_covs)
+        rel_cov = pose_graph.calc_cov_along_path(shortest_path)
 
         # Calculate Mahalanobis distance
         mahalanobis_dist = utils.calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov)
@@ -54,7 +58,7 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
     if not candidate_frames:
         return []
     sorted_candidates = sorted(candidate_frames.items(), key=lambda x: x[1])
-    return [item for item in sorted_candidates[:MAX_CANDIDATES]]
+    return [item for item in sorted_candidates[:MAX_CANDIDATES]]  # only best 3 candidates
 
 
 def q7_2(candidates, n_idx):
@@ -63,17 +67,18 @@ def q7_2(candidates, n_idx):
     Set a threshold for the number of inliers that indicates a successful match.
     Note that this is typically a more difficult match than that of two consecutive frames.
     """
-    loop_data = []
+    fitted_candidates = []
     for candidate in candidates:
         left_ext_mat, cur_inliers, inliers_precent = track_movement_successive([n_idx, candidate])
         if inliers_precent > INLIERS_PREC_THRESH:
             left0_inliers, _, left1_inliers, _ = cur_inliers
-            loop_data.append([left0_inliers, left1_inliers, candidate])
+            fitted_candidates.append([left0_inliers, left1_inliers, candidate])
+            loops_arr.append([n_idx, candidate])
 
-    return loop_data
+    return fitted_candidates
 
 
-def q7_3(loop_data, n_idx, pose_graph):
+def q7_3(fitters, n_idx, pose_graph):
     """
     Relative Pose Estimation - using the inlier matches, perform a small Bundle
     optimization to extract the relative pose of the two frames as well as
@@ -81,11 +86,10 @@ def q7_3(loop_data, n_idx, pose_graph):
     """
     relatives = []
 
-    for data in loop_data:
+    for data in fitters:
         left0_inliers, left1_inliers, candidate = data
-        bundle = Bundle(candidate, n_idx)
-        bundle.create_graph_v2(pose_graph.T_arr, pose_graph.tracks_db)
-        bundle.optimize()
+        loop_tracks = utils.create_loop_tracks(left0_inliers, left1_inliers, candidate, n_idx)
+        bundle = Bundle(candidate, n_idx, loop_tracks)
         rel_pose, rel_cov = pose_graph.rel_cov_and_pos_for_bundle(bundle)
         relatives.append((rel_pose, rel_cov, candidate))
 
@@ -98,11 +102,10 @@ def q7_4(relatives, pose_graph, n_idx):
     graph and optimize it to update the trajectory estimate.
     """
     for rel_pose, rel_cov, i in relatives:
+        pose_graph.vertex_graph.add_edge(i, n_idx, utils.weight_func(rel_cov))
         cur_symbol = gtsam.symbol('c', n_idx)
         prev_symbol = gtsam.symbol('c', i)
         cov = gtsam.noiseModel.Gaussian.Covariance(rel_cov)
-        pose_graph.vertex_graph.add_new_edge(i, n_idx, rel_cov)
-
         factor = gtsam.BetweenFactorPose3(prev_symbol, cur_symbol, rel_pose, cov)
         pose_graph.graph.add(factor)
 
@@ -113,7 +116,7 @@ def q7_5():
     """
     Display plots.
     """
-    pass
+    print(len(loops_arr))
 
 
 def run_ex7():
@@ -135,10 +138,10 @@ def run_ex7():
         candidates = q7_1(pose_graph, i)
 
         # Consensus Matching
-        loop_data = q7_2(candidates, i)
+        fitters = q7_2(candidates, i)
 
         # Relative Pose Estimation
-        relatives = q7_3(loop_data, i, pose_graph)
+        relatives = q7_3(fitters, i, pose_graph)
 
         # Update the Pose Graph
         q7_4(relatives, pose_graph, i)

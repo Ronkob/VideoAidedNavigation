@@ -6,12 +6,12 @@ class Edge:
     """
     This class is responsible for the vertex in the vertex graph.
     """
-    def __init__(self, s, t, cov=None):
+    def __init__(self, s, t, cov=None, weight=None):
         self.s = s
         self.t = t
         self.cov = cov
         if self.cov:
-            self.weight = np.linalg.det(cov)
+            self.weight = np.sqrt(np.linalg.det(cov))
 
 
 class VertexGraph:
@@ -37,10 +37,11 @@ class VertexGraph:
     def find_shortest_path(self, n, i):
         """
         Find shortest path from c_i to c_n using Dijkstra algorithm.
+        Note that at first it will just be i to n
         """
         dists = [float('inf') for _ in range(len(self.size))]
         dists[i] = 0
-        prevs = np.zeros(self.size)
+        prevs = dict()
         visited = [False] * self.size
 
         while visited[n] is False:
@@ -56,7 +57,7 @@ class VertexGraph:
                 if self.adj_mat[min_dist_vertex, v] and visited[v] is False:
                     if dists[min_dist_vertex] + self.adj_mat[min_dist_vertex, v].weight < dists[v]:
                         # Update the distances based on neighbors of min_dist_vertex
-                        dists[v] = dists[min_dist_vertex] + self.adj_mat[min_dist_vertex, v].cn_pose, ci_pose, rel_cov
+                        dists[v] = dists[min_dist_vertex] + self.adj_mat[min_dist_vertex, v].weight
                         prevs[v] = min_dist_vertex
 
         # Calculate the min path from c_n to c_i
@@ -83,6 +84,7 @@ class VertexGraph:
         """
         Sum the covariances along the path to get an estimate of the relative covariance.
         """
+        path = path.nodes
         rel_cov = np.zeros((6, 6))
         for j in range(len(path) - 1):
             rel_cov += rel_covs[j]

@@ -12,8 +12,11 @@ MIN_Y = -10
 
 class Bundle:
 
-    def __init__(self, first_frame, last_frame):
-        self.frames_idxs = np.arange(first_frame, last_frame + 1)
+    def __init__(self, first_frame, last_frame, loop_tracks=None):
+        if loop_tracks:
+            self.frames_idxs = [first_frame, last_frame]
+        else:
+            self.frames_idxs = np.arange(first_frame, last_frame + 1)
         self.graph = gtsam.NonlinearFactorGraph()
         self.initial_estimates = gtsam.Values()
         self.points = []
@@ -21,6 +24,7 @@ class Bundle:
         self.optimizer = None
         self.prior_factor = None
         self.result = None
+        self.loop_tracks = loop_tracks
 
     def get_marginals(self):
         # print("Getting marginals...")
@@ -80,7 +84,11 @@ class Bundle:
             last_frame = min(self.frames_idxs[-1], tracks_db.tracks[track_id].get_frame_ids()[-1])
             if first_frame > last_frame:
                 continue
-            self.extract_factors_to_gtsam(track=tracks_db.tracks[track_id], first_frame=first_frame, last_frame=last_frame,
+            if self.loop_tracks:
+                tracks = self.loop_tracks
+            else:
+                tracks = tracks_db.tracks[track_id]
+            self.extract_factors_to_gtsam(track=tracks, first_frame=first_frame, last_frame=last_frame,
                                           gtsam_frame_to_triangulate_from=last_stereo, K=K)
 
     def extract_factors_to_gtsam(self, track: Track, first_frame, last_frame, gtsam_frame_to_triangulate_from, K):

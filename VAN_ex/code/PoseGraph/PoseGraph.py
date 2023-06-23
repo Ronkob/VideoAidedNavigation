@@ -5,6 +5,7 @@ import numpy as np
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
 from VAN_ex.code.utils import utils
 from VAN_ex.code.PoseGraph.VertexGraph import VertexGraph
+from dijkstar import Graph
 
 
 class PoseGraph:
@@ -30,7 +31,9 @@ class PoseGraph:
 
         self.create_pose_graph()
 
-        self.vertex_graph = VertexGraph(len(self.keyframes), self.rel_covs)
+        # self.vertex_graph = VertexGraph(len(self.keyframes), self.rel_covs)
+        self.vertex_graph = Graph()
+        self.init_vertex_graph()
 
 
     @utils.measure_time
@@ -39,7 +42,7 @@ class PoseGraph:
         Calculate relative poses and covariances between keyframes.
         """
         for bundle in self.bundle_windows:
-            rel_cov, rel_pos = bundle.rel_cov_and_pos_for_bundle(bundle)
+            rel_cov, rel_pos = self.rel_cov_and_pos_for_bundle(bundle)
             self.rel_covs.append(rel_cov)
             self.rel_poses.append(rel_pos)
 
@@ -138,10 +141,26 @@ class PoseGraph:
         rel_pose = first_pose.between(second_pose)
         return rel_cov, rel_pose
 
+    def init_vertex_graph(self):
+        """
+        Initialize the vertex graph with keyframes and relative covariances as weights.
+        """
+        for i in range(len(self.keyframes)-1):
+            self.vertex_graph.add_edge(i, i+1, utils.weight_func(self.rel_covs[i]))
+
+    def calc_cov_along_path(self, path):
+        """
+        Calculate the covariance along the shortest path.
+        """
+        rel_cov = np.zeros((6, 6))
+        path = path.nodes
+        for j in range(path[0], path[-1]):
+            rel_cov += self.rel_covs[j]
+        return rel_cov
+
     @staticmethod
     def create_bundle_windows(keyframes):
         bundle_windows = []
         for i in range(len(keyframes) - 1):
             bundle_windows.append(Bundle(keyframes[i], keyframes[i + 1]))
         return bundle_windows
-
