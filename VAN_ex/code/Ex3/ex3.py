@@ -2,8 +2,10 @@ import os
 
 import cv2
 import numpy as np
-from VAN_ex.code.utils import utils as utils
 import matplotlib.pyplot as plt
+
+from VAN_ex.code.PreCalcData.paths_to_data import T_ARR_PATH
+from VAN_ex.code.utils import utils as utils
 import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex2.ex2 as ex2_utils
 
@@ -452,21 +454,28 @@ def track_movement_all_movie():
     :return:
     """
     T_arr = [ex2_utils.read_cameras()[1]]
+    inliers_lst = []
+    percents_lst = []
+
     start_pos = 0
     for idx in range(start_pos, MOVIE_LENGTH):
         # print status of loop execution every 5 iterations
         if idx % 5 == 0:
             print("iteration number: ", idx)
-        left_ext_mat, _, _ = track_movement_successive([idx, idx + 1])
+        left_ext_mat, inliers, percent = track_movement_successive([idx, idx + 1])
         T_arr.append(left_ext_mat)
+        inliers_lst.append(inliers)
+        percents_lst.append(percent)
 
     # Save the T_arr to numpy file
     T_arr = np.array(T_arr)
-    np.save("T_arr.npy", T_arr)
+    return T_arr, inliers_lst, percents_lst
 
+
+def plot_ex3(T_arr):
     ground_truth_T_arr = get_ground_truth_transformations()
     ground_truth_pos = calculate_camera_trajectory(ground_truth_T_arr)
-    T_arr[0] = ground_truth_T_arr[start_pos]
+    T_arr[0] = ground_truth_T_arr[0]
     cam_pos = calculate_camera_trajectory(calculate_relative_transformations(T_arr))
     plot_camera_trajectory(cam_pos, ground_truth_pos)
 
@@ -480,7 +489,9 @@ def run_ex3():
     # one_run_over_ex3([0, 1])
 
     # Section 3.6 - Repeat steps 2.1-2.5 for the whole movie for all the images.
-    track_movement_all_movie()
+    T_arr, _, _ = track_movement_all_movie()
+    np.save(T_ARR_PATH, T_arr)
+    plot_ex3(T_arr)
 
 
 def main():

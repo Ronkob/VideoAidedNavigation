@@ -6,12 +6,14 @@ import numpy as np
 from gtsam.utils import plot
 import matplotlib.pyplot as plt
 
+from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils
 from VAN_ex.code.Ex3.ex3 import calculate_relative_transformations, track_movement_successive
-from VAN_ex.code.Ex4.ex4 import TracksDB, Track
-from VAN_ex.code.Ex5.ex5 import plot_scene_3d, plot_scene_from_above
+from VAN_ex.code.DataBase.TracksDB import TracksDB, create_loop_tracks
+from VAN_ex.code.DataBase.Track import Track
+from VAN_ex.code.utils.auxilery_plot_utils import plot_scene_from_above, plot_scene_3d
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
-from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph
-from VAN_ex.code.utils import utils
+from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph, save_pos_graph, load_pos_graph
+from VAN_ex.code.PreCalcData.paths_to_data import RELATIVES_PATH
 
 from dijkstar import find_path
 
@@ -25,6 +27,7 @@ INLIERS_PREC_THRESH = 70
 loops_arr = []
 
 
+# @utils.measure_time
 def q7_1(pose_graph: PoseGraph, n_idx: int):
     """
     Detect Loop Closure Candidates.
@@ -50,17 +53,20 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
 
         # Calculate Mahalanobis distance
         mahalanobis_dist = utils.calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov)
-
+        # print the mahalanobis distance with no new line
         # Choose a threshold to determine if the candidate advances to the next (expensive) stage
         if mahalanobis_dist < MAHAL_THRESH:
+            print(i, ":", mahalanobis_dist)
             candidate_frames[i] = mahalanobis_dist
 
+    print(n_idx, ":", candidate_frames)
     if not candidate_frames:
         return []
     sorted_candidates = sorted(candidate_frames.items(), key=lambda x: x[1])
     return [item for item in sorted_candidates[:MAX_CANDIDATES]]  # only best 3 candidates
 
 
+@utils.measure_time
 def q7_2(candidates, n_idx):
     """
     Consensus Matching - perform consensus match between the two candidate frames. (See exercise 3)
@@ -78,6 +84,7 @@ def q7_2(candidates, n_idx):
     return fitted_candidates
 
 
+@utils.measure_time
 def q7_3(fitters, n_idx, pose_graph):
     """
     Relative Pose Estimation - using the inlier matches, perform a small Bundle
@@ -88,7 +95,7 @@ def q7_3(fitters, n_idx, pose_graph):
 
     for data in fitters:
         left0_inliers, left1_inliers, candidate = data
-        loop_tracks = utils.create_loop_tracks(left0_inliers, left1_inliers, candidate, n_idx)
+        loop_tracks = create_loop_tracks(left0_inliers, left1_inliers, candidate, n_idx)
         bundle = Bundle(candidate, n_idx, loop_tracks)
         rel_pose, rel_cov = pose_graph.rel_cov_and_pos_for_bundle(bundle)
         relatives.append((rel_pose, rel_cov, candidate))
@@ -96,6 +103,7 @@ def q7_3(fitters, n_idx, pose_graph):
     return relatives
 
 
+@utils.measure_time
 def q7_4(relatives, pose_graph, n_idx):
     """
     Update the Pose Graph - add the resulting synthetic measurement to the pose
@@ -112,6 +120,7 @@ def q7_4(relatives, pose_graph, n_idx):
     pose_graph.solve()
 
 
+@utils.measure_time
 def q7_5():
     """
     Display plots.
@@ -129,7 +138,15 @@ def run_ex7():
     T_arr = np.load(T_ARR_PATH)
     rel_t_arr = calculate_relative_transformations(T_arr)
 
-    pose_graph = PoseGraph(tracks_db, rel_t_arr)
+    pose_graph = load_pos_graph('pose_graph.pkl')
+    if pose_graph is None:
+        pose_graph = PoseGraph(tracks_db, rel_t_arr, None, PoseGraph.choose_keyframes_median, **{'median': 0.6})
+        pose_graph.solve()
+        PoseGraph.save(pose_graph, 'pose_graph.pkl')
+
+    print(f'pose graph has {len(pose_graph.keyframes)} keyframes and {len(pose_graph.tracks)} tracks')
+
+    auxilery_plot_utils.plot_scene_from_above(pose_graph.result, marginals=pose_graph.get_marginals(), question='q7')
 
     # For each key frame cn in the pose graph loop over previous keyframes ci, i < n, and perform
     # steps 7.1-7.4:
@@ -137,14 +154,19 @@ def run_ex7():
         # Detect Loop Closure Candidates
         candidates = q7_1(pose_graph, i)
 
-        # Consensus Matching
-        fitters = q7_2(candidates, i)
+        if not candidates:
+            continue
 
-        # Relative Pose Estimation
-        relatives = q7_3(fitters, i, pose_graph)
+        else:
+            print(f'candidates for {i}: {candidates}')
+            # Consensus Matching
+            fitters = q7_2(candidates, i)
 
-        # Update the Pose Graph
-        q7_4(relatives, pose_graph, i)
+            # Relative Pose Estimation
+            relatives = q7_3(fitters, i, pose_graph)
+
+            # Update the Pose Graph
+            q7_4(relatives, pose_graph, i)
 
     # Display Plots
     q7_5()

@@ -1,10 +1,30 @@
+import os
 import pickle
 
 import gtsam
 import numpy as np
-from VAN_ex.code.Ex4.ex4 import TracksDB
+from VAN_ex.code.DataBase.TracksDB import TracksDB
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.utils import utils, projection_utils
+
+FRAC = 0.6
+
+
+def save_ba(ba, path):
+    """
+    Saves the BundleAdjustment object to the serialized file.
+    """
+    with open(path, 'wb') as file:
+        pickle.dump(ba, file)
+
+
+def load_ba(path):
+    """
+    Loads the BundleAdjustment object from the serialized file.
+    """
+    with open(path, 'rb') as file:
+        ba = pickle.load(file)
+    return ba
 
 
 class BundleAdjustment:
@@ -19,6 +39,7 @@ class BundleAdjustment:
         self.T_arr = T_arr
 
     def choose_keyframes(self, type, INTERVAL=10, parameter=-1):
+        print("choosing keyframes...")
         if type == 'length':
             key_frames = []
             for frame_id in range(len(self.tracks_db.frame_ids))[:parameter]:
@@ -27,19 +48,21 @@ class BundleAdjustment:
             self.keyframes = key_frames
 
         elif type == 'end_frame':
-            FRAC = 0.6
+            median = FRAC
             self.keyframes.append(0)
             while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
                 tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
                 end_frames = sorted([self.tracks_db.tracks[track].frame_ids[-1] for track in tracks_in_keyframe])
-                self.keyframes.append(end_frames[int(len(end_frames) * FRAC)])
+                self.keyframes.append(end_frames[int(len(end_frames) * median)])
                 if len(self.tracks_db.frame_ids) - 1 - self.keyframes[-1] < 10:
                     self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
                     break
-        print('last 10 Keyframes: ', self.keyframes[-10:])
+        # print('last 10 Keyframes: ', self.keyframes[-10:])
+        print("finish choosing keyframes, number of keyframes: ", len(self.keyframes))
 
     @utils.measure_time
     def solve(self):
+        print("solving...")
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
         cameras = [gtsam.Pose3()]
         points = []
@@ -52,6 +75,7 @@ class BundleAdjustment:
         cameras = np.array(cameras)
         self.cameras_rel_pose = cameras
         self.points_rel_pose = points
+        print("finish solving")
         return self.cameras_rel_pose, self.points_rel_pose
 
     def get_relative_poses(self):
@@ -74,4 +98,3 @@ class BundleAdjustment:
     def deserialize(file_name):
         with open(file_name, 'rb') as file:
             return pickle.load(file)
-

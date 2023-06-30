@@ -1,23 +1,19 @@
-import os
 import gtsam
-from gtsam.utils import plot as gtsam_plot
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 import VAN_ex.code.Ex1.ex1 as ex1_utils
 import VAN_ex.code.Ex3.ex3 as ex3_utils
-import VAN_ex.code.Ex4.ex4 as ex4_utils
-from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils, gtsam_plot_utils
-from VAN_ex.code.Ex4.ex4 import TracksDB, Track
+from VAN_ex.code.PreCalcData.paths_to_data import DB_PATH, T_ARR_PATH, BA_PATH
+from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils
+from VAN_ex.code.DataBase.TracksDB import TracksDB
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.BundleAdjustment import BundleAdjustment
+from VAN_ex.code.utils.auxilery_plot_utils import plot_scene_from_above, plot_scene_3d
 
 # from VAN_ex.code.utils import gtsam_plot_utils
 
-DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
-T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
-BA_PATH = os.path.join('..', 'Ex5', 'ba.pkl')
 old_k, m1, m2 = ex3_utils.k, ex3_utils.m1, ex3_utils.m2
 
 
@@ -147,40 +143,6 @@ def q5_3(tracks_db, T_arr):
 
 
 # ===== Helper functions =====
-
-def plot_scene_from_above(result, points=None, question=None, marginals=None, scale=1):
-    """
-    Function that plots a scene of a certain bundle window from above.
-    """
-    plot_scene_3d(result, points=points, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
-                  title="scene from above", question=question, marginals=marginals, scale=scale)
-
-
-def plot_scene_3d(result, init_view=None, points=None, title="3d scene", marginals=None, scale=1, question='q5_2'):
-    """
-    Function that plots a scene of a certain bundle window in 3D.
-    """
-    if init_view is None:
-        init_view = {'azim': -15, 'elev': 200, 'vertical_axis': 'y'}
-    fig = plt.figure(num=0, figsize=(8, 8))
-    ax = fig.add_subplot(111, projection='3d')
-    # if points is None:
-    #     points = gtsam.utilities.extractPoint3(result)
-    #
-    # for point in points:
-    #     gtsam_plot_utils.plot_point3_on_axes(ax, point, 'k.')
-
-    gtsam_plot_utils.plot_trajectory(0, result, scale=scale, marginals=marginals)
-    gtsam_plot_utils.set_axes_equal(0)
-
-    # ax.set_zlim3d(0, 50)
-    # ax.set_xlim3d(-20, 30)
-    # ax.set_ylim3d(-45, 5)
-    ax.view_init(**init_view)
-    fig.suptitle(title, fontsize=16, fontweight='bold')
-    fig.savefig(question + ' ' + title + '.png')
-    # fig.show()
-    plt.clf()
 
 
 def triangulate_and_project(track, tracks_db):
