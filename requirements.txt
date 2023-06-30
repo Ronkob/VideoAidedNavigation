@@ -4,3 +4,5 @@ matplotlib~=3.7.1
 gtsam~=4.1.1
 Dijkstar~=2.6.0
 scipy~=1.9.3
+tqdm~=4.62.3
+```
