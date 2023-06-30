@@ -12,8 +12,11 @@ MIN_Y = -10
 
 class Bundle:
 
-    def __init__(self, first_frame, last_frame):
-        self.frames_idxs = np.arange(first_frame, last_frame + 1)
+    def __init__(self, first_frame, last_frame, loop_tracks=None):
+        if loop_tracks:
+            self.frames_idxs = [first_frame, last_frame]
+        else:
+            self.frames_idxs = np.arange(first_frame, last_frame + 1)
         self.graph = gtsam.NonlinearFactorGraph()
         self.initial_estimates = gtsam.Values()
         self.points = []
@@ -21,17 +24,18 @@ class Bundle:
         self.optimizer = None
         self.prior_factor = None
         self.result = None
+        self.loop_tracks = loop_tracks
 
     def get_marginals(self):
-        print("Getting marginals...")
+        # print("Getting marginals...")
         # print(f"Graph: {self.graph}")
         # print(f"Result: {self.result}")
 
         if self.result:
-            print("Computing marginals from result...")
+            # print("Computing marginals from result...")
             marginals = gtsam.Marginals(self.graph, self.result)
         else:
-            print("Computing marginals from initial estimates...")
+            # print("Computing marginals from initial estimates...")
             marginals = gtsam.Marginals(self.graph, self.initial_estimates)
         return marginals
 
@@ -66,7 +70,7 @@ class Bundle:
 
             # Add a prior factor just for first camera pose
             if frame_id == self.frames_idxs[0]:  # Constraints for first frame
-                sigmas = np.array([(1 * np.pi / 180) ** 2] * 3 + [1e-1, 3e-2, 1.0])
+                sigmas = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]) ** 7
                 cov = gtsam.noiseModel.Diagonal.Sigmas(sigmas=sigmas)
                 factor = gtsam.PriorFactorPose3(symbol, pose, cov)
                 self.prior_factor = factor
@@ -80,7 +84,11 @@ class Bundle:
             last_frame = min(self.frames_idxs[-1], tracks_db.tracks[track_id].get_frame_ids()[-1])
             if first_frame > last_frame:
                 continue
-            self.extract_factors_to_gtsam(track=tracks_db.tracks[track_id], first_frame=first_frame, last_frame=last_frame,
+            if self.loop_tracks:
+                tracks = self.loop_tracks
+            else:
+                tracks = tracks_db.tracks[track_id]
+            self.extract_factors_to_gtsam(track=tracks, first_frame=first_frame, last_frame=last_frame,
                                           gtsam_frame_to_triangulate_from=last_stereo, K=K)
 
     def extract_factors_to_gtsam(self, track: Track, first_frame, last_frame, gtsam_frame_to_triangulate_from, K):

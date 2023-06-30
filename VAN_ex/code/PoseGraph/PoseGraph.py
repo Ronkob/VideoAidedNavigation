@@ -4,6 +4,8 @@ import numpy as np
 
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
 from VAN_ex.code.utils import utils
+from VAN_ex.code.PoseGraph.VertexGraph import VertexGraph
+from dijkstar import Graph
 
 
 class PoseGraph:
@@ -23,11 +25,16 @@ class PoseGraph:
         self.choose_keyframes()
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
 
-        self.calculate_rel_cov_and_poses()
-        # with open('relatives.pkl', 'rb') as file:  # When already saved
-        #     self.rel_covs, self.rel_poses = pickle.load(file)
+        # self.calculate_rel_cov_and_poses()
+        with open('relatives.pkl', 'rb') as file:  # When already saved
+            self.rel_covs, self.rel_poses = pickle.load(file)
 
         self.create_pose_graph()
+
+        # self.vertex_graph = VertexGraph(len(self.keyframes), self.rel_covs)
+        self.vertex_graph = Graph()
+        self.init_vertex_graph()
+
 
     @utils.measure_time
     def calculate_rel_cov_and_poses(self):
@@ -35,31 +42,9 @@ class PoseGraph:
         Calculate relative poses and covariances between keyframes.
         """
         for bundle in self.bundle_windows:
-            first_kf, second_kf = bundle.frames_idxs[0], bundle.frames_idxs[-1]
-            keys = gtsam.KeyVector()
-            keys.append(gtsam.symbol('c', first_kf))
-            keys.append(gtsam.symbol('c', second_kf))
-            bundle.create_graph_v2(self.T_arr, self.tracks_db)
-            bundle.optimize()
-            try:
-                marginals = bundle.get_marginals()
-            except:
-                print("Failed to get marginals for bundle window: ", bundle.frames_idxs)
-                # print the exception traceback
-                import traceback
-                traceback.print_exc()
-                # exit(1)
-                continue
-            # marg_cov_mat = marginals.jointMarginalCovariance(keys).at(keys[1], keys[1])
-            # self.rel_covs.append(marg_cov_mat)
-            joint_information_mat = marginals.jointMarginalInformation(keys).at(keys[1], keys[1])
-            rel_cov = np.linalg.inv(joint_information_mat)
+            rel_cov, rel_pos = self.rel_cov_and_pos_for_bundle(bundle)
             self.rel_covs.append(rel_cov)
-
-            first_pose = bundle.result.atPose3(gtsam.symbol('c', first_kf))
-            second_pose = bundle.result.atPose3(gtsam.symbol('c', second_kf))
-            rel_pose = first_pose.between(second_pose)
-            self.rel_poses.append(rel_pose)
+            self.rel_poses.append(rel_pos)
 
         with open('relatives.pkl', 'wb') as file:
             pickle.dump((self.rel_covs, self.rel_poses), file)
@@ -97,7 +82,7 @@ class PoseGraph:
         self.initial_estimates.insert(init_cam, init_pose)
 
         # Add a prior factor to graph
-        sigmas = np.array([(1 * np.pi / 180) ** 2] * 3 + [1e-1, 3e-2, 1.0])
+        sigmas = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]) ** 7
         pose_cov = gtsam.noiseModel.Diagonal.Sigmas(sigmas=sigmas)
         factor = gtsam.PriorFactorPose3(init_cam, init_pose, pose_cov)
         self.graph.add(factor)
@@ -128,6 +113,50 @@ class PoseGraph:
                 self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
                 break
         print('First 10 Keyframes: ', self.keyframes[:10])
+
+    def rel_cov_and_pos_for_bundle(self, bundle):
+        first_kf, second_kf = bundle.frames_idxs[0], bundle.frames_idxs[-1]
+        keys = gtsam.KeyVector()
+        keys.append(gtsam.symbol('c', first_kf))
+        keys.append(gtsam.symbol('c', second_kf))
+        bundle.create_graph_v2(self.T_arr, self.tracks_db)
+        bundle.optimize()
+        try:
+            marginals = bundle.get_marginals()
+        except:
+            print("Failed to get marginals for bundle window: ",
+                  bundle.frames_idxs)
+            # print the exception traceback
+            import traceback
+            traceback.print_exc()
+            # exit(1)
+            return
+        # rel_cov = marginals.jointMarginalCovariance(keys).at(keys[1], keys[1])
+        joint_information_mat = marginals.jointMarginalInformation(keys).at(
+            keys[1], keys[1])
+        rel_cov = np.linalg.inv(joint_information_mat)
+
+        first_pose = bundle.result.atPose3(gtsam.symbol('c', first_kf))
+        second_pose = bundle.result.atPose3(gtsam.symbol('c', second_kf))
+        rel_pose = first_pose.between(second_pose)
+        return rel_cov, rel_pose
+
+    def init_vertex_graph(self):
+        """
+        Initialize the vertex graph with keyframes and relative covariances as weights.
+        """
+        for i in range(len(self.keyframes)-1):
+            self.vertex_graph.add_edge(i, i+1, utils.weight_func(self.rel_covs[i]))
+
+    def calc_cov_along_path(self, path):
+        """
+        Calculate the covariance along the shortest path.
+        """
+        rel_cov = np.zeros((6, 6))
+        path = path.nodes
+        for j in range(path[0], path[-1]):
+            rel_cov += self.rel_covs[j]
+        return rel_cov
 
     @staticmethod
     def create_bundle_windows(keyframes):

@@ -1,5 +1,6 @@
 import os.path
 import time
+import scipy
 from typing import Iterable
 
 import cv2
@@ -9,6 +10,7 @@ import gtsam.utils.plot as gtsam_plot
 import gtsam
 from mpl_toolkits.mplot3d import Axes3D
 import VAN_ex.code.Ex2.ex2 as ex2_utils
+from VAN_ex.code.Ex4.ex4 import TracksDB, Track
 from VAN_ex.code.utils.projection_utils import calculate_camera_trajectory
 
 DATA_PATH = os.path.join('../..', 'dataset', 'sequences', '05')
@@ -509,3 +511,28 @@ def get_rand_track(track_len, tracks, seed=0):
 def get_initial_estimation(rel_t_arr):
     cam_pos = calculate_camera_trajectory(rel_t_arr)
     return cam_pos
+
+
+def calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov):
+    """
+    Calculate the mahalanobis distance between two poses.
+    """
+    rel_cov_inv = np.linalg.inv(rel_cov)
+    rel_pose = cn_pose.between(ci_pose)
+    rel_pose_vec = gtsam.Pose3.Logmap(rel_pose)
+    return np.sqrt(rel_pose_vec.T @ rel_cov_inv @ rel_pose_vec)
+
+
+def create_loop_tracks(left0_inliers, left1_inliers, i, n):
+    loop_tracks = []
+
+    for j in range(len(left0_inliers)):
+        left0_inlier, left1_inlier = left0_inliers[i], left1_inliers[i]
+        cur_track = Track(j, [i, n], [left0_inlier, left1_inlier])
+        loop_tracks.append(cur_track)
+
+    return loop_tracks
+
+
+def weight_func(cov):
+    return np.sqrt(np.linalg.inv(cov))

@@ -52,8 +52,8 @@ reprojection constraints (only pose-pose constraints) and only a subset of the f
 In this exercise we prepare for implementing Loop Closure, by extracting relative pose constraint from Bundle optimization and building the Pose Graph.
 
 ![image](https://github.com/Dor890/SLAM/assets/64433958/0814ccbd-9fdf-4a93-a69c-a0271450f175)
-![q6_2 optimized poses scene from above.png](VAN_ex%2Fmedia%2Fq6_2%20optimized%20poses%20scene%20from%20above.png)
-![q6_2 optimized poses with cov scene from above.png](VAN_ex%2Fmedia%2Fq6_2%20optimized%20poses%20with%20cov%20scene%20from%20above.png)
+![image](https://github.com/Dor890/SLAM/assets/64433958/9e3d087d-bd97-4f74-81e6-b774ff231959)
+![image](https://github.com/Dor890/SLAM/assets/64433958/ca4b76d9-b1fa-4d38-b02c-2e01350ab9c1)
 
 ## Ex7
 In this exercise, we will recognize that the current location of the vehicle is potentially similar to some past location and initiate a search for the exact relative pose between two frames.
