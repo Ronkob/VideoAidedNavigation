@@ -12,7 +12,7 @@ from VAN_ex.code.utils import utils
 from dijkstar import Graph
 
 
-def save_pos_graph(pose_graph, path):
+def save_pg(pose_graph, path):
     """
     Save the pose graph to a file.
     """
@@ -20,7 +20,7 @@ def save_pos_graph(pose_graph, path):
         pickle.dump(pose_graph, file)
 
 
-def load_pos_graph(path):
+def load_pg(path):
     """
     Load the pose graph from a file.
     if the path not exist return None
@@ -50,6 +50,7 @@ class PoseGraph:
 
         if ba is not None:
             self.init_from_ba(ba)
+
         else:
             self.init_without_ba(choosing_method, **kwargs)
 
@@ -70,7 +71,7 @@ class PoseGraph:
 
     def init_from_ba(self, ba:BundleAdjustment):
         self.keyframes = ba.keyframes
-        self.bundle_windows = ba.bundle_windows
+        self.bundle_windows = self.create_bundle_windows(self.keyframes)
         self.tracks_db = ba.tracks_db
         self.T_arr = ba.T_arr
 

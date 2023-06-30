@@ -32,7 +32,7 @@ def load_ba(path):
 class BundleAdjustment:
 
     def __init__(self, tracks_db: TracksDB, T_arr: np.ndarray):
-        self.keyframes = []
+        self.keyframes = [0]
         self.bundle_windows = []
         self.cameras_rel_pose = []
         self.points_rel_pose = []
@@ -40,27 +40,29 @@ class BundleAdjustment:
         self.tracks_db = tracks_db
         self.T_arr = T_arr
 
-    def choose_keyframes(self, type, INTERVAL=10, parameter=-1):
+    @utils.measure_time
+    def choose_keyframes(self, choosing_method=None, **kwargs):
         print("choosing keyframes...")
-        if type == 'length':
-            key_frames = []
-            for frame_id in range(len(self.tracks_db.frame_ids))[:parameter]:
-                if frame_id % INTERVAL == 0:
-                    key_frames.append(frame_id)
-            self.keyframes = key_frames
+        if choosing_method is None:
+            self.choose_keyframes_median()
+        else:
+            choosing_method(**kwargs)
+        print("finished choosing keyframes, number of keyframes: ", len(self.keyframes))
 
-        elif type == 'end_frame':
-            median = FRAC
-            self.keyframes.append(0)
-            while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
-                tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
-                end_frames = sorted([self.tracks_db.tracks[track].frame_ids[-1] for track in tracks_in_keyframe])
-                self.keyframes.append(end_frames[int(len(end_frames) * median)])
-                if len(self.tracks_db.frame_ids) - 1 - self.keyframes[-1] < 10:
-                    self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
-                    break
-        # print('last 10 Keyframes: ', self.keyframes[-10:])
-        print("finish choosing keyframes, number of keyframes: ", len(self.keyframes))
+    def choose_keyframes_median(self, median=FRAC):
+        while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
+            tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
+            end_frames = sorted([self.tracks_db.tracks[track].frame_ids[-1] for track in tracks_in_keyframe])
+            self.keyframes.append(end_frames[int(len(end_frames) * median)])
+            if len(self.tracks_db.frame_ids) - 1 - self.keyframes[-1] < 10:
+                self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
+                break
+        # print('First 10 Keyframes: ', self.keyframes[:10])
+
+    def choose_keyframes_every_n(self, n=5):
+        self.keyframes = list(range(0, len(self.tracks_db.frame_ids), n))[:15]
+        # self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
+        # print('First 10 Keyframes: ', self.keyframes[:10])
 
     @utils.measure_time
     def solve(self):

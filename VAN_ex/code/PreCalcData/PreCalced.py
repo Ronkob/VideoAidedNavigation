@@ -2,7 +2,7 @@ from numpy import load as np_load, save as np_save
 
 from VAN_ex.code.BundleAdjustment.BundleAdjustment import BundleAdjustment, save_ba, load_ba
 from VAN_ex.code.DataBase.TracksDB import TracksDB, save_tracks_db, load_tracks_db
-from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph, save_pos_graph, load_pos_graph
+from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph, save_pg, load_pg
 from VAN_ex.code.Ex3 import ex3
 from VAN_ex.code.Ex4 import ex4
 from VAN_ex.code.PreCalcData.paths_to_data import BA_PATH, DB_PATH, T_ARR_PATH, PG_PATH
@@ -58,10 +58,10 @@ class Data:
     def get_pose_graph(self):
         if self.pose_graph is None:
             try:
-                self.pose_graph = load_pos_graph(PG_PATH)
+                self.pose_graph = load_pg(PG_PATH)
             except FileNotFoundError:
                 self.pose_graph = create_pose_graph(tracks_db=self.tracks_db, T_arr=self.T_arr, ba=self.ba)
-                save_pos_graph(self.pose_graph, PG_PATH)
+                save_pg(self.pose_graph, PG_PATH)
 
         return self.pose_graph
 
@@ -92,7 +92,7 @@ def create_tracks_db(t_arr, inliers_lst, percents_lst):
 def create_ba(tracks_db, T_arr):
     print("creating ba...")
     ba = BundleAdjustment(tracks_db, T_arr)
-    ba.choose_keyframes('end_frame')
+    ba.choose_keyframes(ba.choose_keyframes_every_n, **{"n": 5})
     ba.solve()
     print("finished creating ba")
     return ba
@@ -105,7 +105,8 @@ def create_pose_graph(tracks_db: TracksDB = None, T_arr=None, ba: BundleAdjustme
     else:
         assert (tracks_db is not None), "tracks_db or ba must be given"
         assert (T_arr is not None), "tracks_db or ba must be given"
-        assert (tracks_db.frame_ids == T_arr.shape[0]), "tracks_db and T_arr must have the same number of frames"
+        print(len(tracks_db.frame_ids), T_arr.shape)
+        assert (len(tracks_db.frame_ids) == T_arr.shape[0]), "tracks_db and T_arr must have the same number of frames"
         pg = PoseGraph(tracks_db=tracks_db, T_arr=T_arr)
 
     pg.solve()

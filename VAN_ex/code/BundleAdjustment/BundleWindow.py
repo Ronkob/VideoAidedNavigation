@@ -47,8 +47,8 @@ class Bundle:
             return self.graph.error(self.result)
 
     def optimize(self):
-        self.optimizer = gtsam.LevenbergMarquardtOptimizer(self.graph, self.initial_estimates)
-        self.result = self.optimizer.optimize()
+        optimizer = gtsam.LevenbergMarquardtOptimizer(self.graph, self.initial_estimates)
+        self.result = optimizer.optimize()
         return self.result
 
     def create_graph_v2(self, T_arr, tracks_db: TracksDB):

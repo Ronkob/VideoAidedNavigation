@@ -12,7 +12,7 @@ from VAN_ex.code.DataBase.TracksDB import TracksDB, create_loop_tracks
 from VAN_ex.code.DataBase.Track import Track
 from VAN_ex.code.utils.auxilery_plot_utils import plot_scene_from_above, plot_scene_3d
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
-from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph, save_pos_graph, load_pos_graph
+from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph, save_pg, load_pg
 from VAN_ex.code.PreCalcData.paths_to_data import RELATIVES_PATH
 
 from dijkstar import find_path
@@ -138,11 +138,11 @@ def run_ex7():
     T_arr = np.load(T_ARR_PATH)
     rel_t_arr = calculate_relative_transformations(T_arr)
 
-    pose_graph = load_pos_graph('pose_graph.pkl')
+    pose_graph = load_pg('pose_graph.pkl')
     if pose_graph is None:
-        pose_graph = PoseGraph(tracks_db, rel_t_arr, None, PoseGraph.choose_keyframes_median, **{'median': 0.6})
+        pose_graph = PoseGraph(tracks_db, rel_t_arr)
         pose_graph.solve()
-        PoseGraph.save(pose_graph, 'pose_graph.pkl')
+        # PoseGraph.save(pose_graph, 'pose_graph.pkl')
 
     print(f'pose graph has {len(pose_graph.keyframes)} keyframes and {len(pose_graph.tracks)} tracks')
 

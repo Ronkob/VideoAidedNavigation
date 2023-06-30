@@ -104,7 +104,7 @@ def q5_3(tracks_db, T_arr):
     Calculate the absolute pose of the keyframes in global (camera 0) coordinate system.
     """
     bundle_adjustment = BundleAdjustment.BundleAdjustment(tracks_db, T_arr)
-    bundle_adjustment.choose_keyframes(type='end_frame', parameter=200)
+    bundle_adjustment.choose_keyframes(bundle_adjustment.choose_keyframes_median)
     bundle_adjustment.solve()
     bundle_adjustment.serialize(BA_PATH)
 
