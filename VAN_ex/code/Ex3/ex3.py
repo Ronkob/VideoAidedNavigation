@@ -3,6 +3,7 @@ import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from VAN_ex.code.PreCalcData.paths_to_data import T_ARR_PATH
 from VAN_ex.code.utils import utils as utils
@@ -458,7 +459,7 @@ def track_movement_all_movie():
     percents_lst = []
 
     start_pos = 0
-    for idx in range(start_pos, MOVIE_LENGTH):
+    for idx in tqdm(range(start_pos, MOVIE_LENGTH)):
         # print status of loop execution every 5 iterations
         if idx % 5 == 0:
             print("iteration number: ", idx)

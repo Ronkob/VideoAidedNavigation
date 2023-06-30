@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 
 from VAN_ex.code.DataBase.Track import Track
+from VAN_ex.code.PreCalcData.paths_to_data import DB_PATH
 
 
 def save_tracks_db(tracks_db, path):
@@ -15,7 +16,7 @@ def save_tracks_db(tracks_db, path):
         pickle.dump(tracks_db, f)
 
 
-def load_tracks_db(path):
+def load_tracks_db(path=DB_PATH):
     """
     Load a tracks database from a pickle file.
     :param path: Path to load the pickle file from.

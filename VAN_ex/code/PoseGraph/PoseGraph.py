@@ -3,6 +3,7 @@ import os
 import gtsam
 import pickle
 import numpy as np
+from tqdm import tqdm
 
 from VAN_ex.code.BundleAdjustment.BundleAdjustment import BundleAdjustment, FRAC
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
@@ -36,7 +37,7 @@ class PoseGraph:
     Class represents the factor graph which is build from the keyframes.
     """
 
-    def __init__(self, tracks_db=None, T_arr=None, ba:BundleAdjustment = None, relative_poses_path=None,
+    def __init__(self, tracks_db=None, T_arr=None, ba: BundleAdjustment = None, relative_poses_path=None,
                  choosing_method=None, **kwargs):
 
         self.keyframes = [0]
@@ -68,19 +69,28 @@ class PoseGraph:
     def init_without_ba(self, choosing_method, **kwargs):
         self.choose_keyframes(choosing_method, **kwargs)
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
+        self.optimize_bundles(self.bundle_windows)
 
-    def init_from_ba(self, ba:BundleAdjustment):
+    def init_from_ba(self, ba: BundleAdjustment):
         self.keyframes = ba.keyframes
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
         self.tracks_db = ba.tracks_db
         self.T_arr = ba.T_arr
+
+    def optimize_bundles(self, bundle_windows):
+        """
+        Optimize the bundle windows.
+        """
+        for bundle in tqdm(bundle_windows):
+            bundle.create_graph_v2(self.T_arr, self.tracks_db)
+            bundle.optimize()
 
     @utils.measure_time
     def calculate_rel_cov_and_poses(self, bundle_windows):
         """
         Calculate relative poses and covariances between keyframes.
         """
-        for bundle in bundle_windows:
+        for bundle in tqdm(bundle_windows):
             rel_cov, rel_pos = self.rel_cov_and_pos_for_bundle(bundle)
             self.rel_covs.append(rel_cov)
             self.rel_poses.append(rel_pos)
@@ -101,8 +111,10 @@ class PoseGraph:
         """
         Solve the pose graph.
         """
+        print('Solving the pose graph..')
         optimizer = gtsam.LevenbergMarquardtOptimizer(self.graph, self.initial_estimates)
         self.result = optimizer.optimize()
+        print('finished solving the pose graph.')
         return self.result
 
     def get_marginals(self):
@@ -169,8 +181,6 @@ class PoseGraph:
         keys = gtsam.KeyVector()
         keys.append(gtsam.symbol('c', first_kf))
         keys.append(gtsam.symbol('c', second_kf))
-        bundle.create_graph_v2(self.T_arr, self.tracks_db)
-        bundle.optimize()
         try:
             marginals = bundle.get_marginals()
         except:

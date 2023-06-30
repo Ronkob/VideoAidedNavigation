@@ -5,8 +5,9 @@ import gtsam
 import numpy as np
 from tqdm import tqdm
 
-from VAN_ex.code.DataBase.TracksDB import TracksDB
+from VAN_ex.code.DataBase.TracksDB import TracksDB, load_tracks_db
 from VAN_ex.code.BundleAdjustment import BundleWindow
+from VAN_ex.code.PreCalcData.paths_to_data import T_ARR_PATH
 from VAN_ex.code.utils import utils, projection_utils
 
 FRAC = 0.6
@@ -40,6 +41,21 @@ class BundleAdjustment:
         self.tracks_db = tracks_db
         self.T_arr = T_arr
 
+    def __getstate__(self):
+        # create a new dictionary for the object's state
+        state = self.__dict__.copy()
+        # remove the optimizer from the state
+        del state['tracks_db']
+        del state['T_arr']
+        return state
+
+    def __setstate__(self, state):
+        # restore the object's state (excluding the optimizer)
+        self.__dict__.update(state)
+        # re-initialize the optimizer, or set it to None, as needed
+        self.tracks_db = load_tracks_db()
+        self.T_arr = np.load(T_ARR_PATH)
+
     @utils.measure_time
     def choose_keyframes(self, choosing_method=None, **kwargs):
         print("choosing keyframes...")
@@ -66,7 +82,7 @@ class BundleAdjustment:
 
     @utils.measure_time
     def solve(self):
-        print("solving...")
+        print("solving bundle adjustment...")
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
         cameras = [gtsam.Pose3()]
         points = []
