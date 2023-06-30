@@ -3,6 +3,8 @@ import pickle
 
 import gtsam
 import numpy as np
+from tqdm import tqdm
+
 from VAN_ex.code.DataBase.TracksDB import TracksDB
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.utils import utils, projection_utils
@@ -66,7 +68,7 @@ class BundleAdjustment:
         self.bundle_windows = self.create_bundle_windows(self.keyframes)
         cameras = [gtsam.Pose3()]
         points = []
-        for bundle_window in self.bundle_windows:
+        for bundle_window in tqdm(self.bundle_windows):
             bundle_window.create_graph_v2(self.T_arr, self.tracks_db)
             bundle_window.optimize()
             cameras.append(bundle_window.get_from_optimized(obj='camera_p3d'))

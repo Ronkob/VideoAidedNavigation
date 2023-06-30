@@ -4,7 +4,7 @@ import gtsam
 import pickle
 import numpy as np
 
-from VAN_ex.code.BundleAdjustment.BundleAdjustment import BundleAdjustment
+from VAN_ex.code.BundleAdjustment.BundleAdjustment import BundleAdjustment, FRAC
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
 from VAN_ex.code.PreCalcData.paths_to_data import RELATIVES_PATH
 from VAN_ex.code.utils import utils
@@ -36,8 +36,8 @@ class PoseGraph:
     Class represents the factor graph which is build from the keyframes.
     """
 
-    def __init__(self, tracks_db, T_arr, ba:BundleAdjustment = None, relative_poses_path=None, choosing_method=None,
-                 **kwargs):
+    def __init__(self, tracks_db=None, T_arr=None, ba:BundleAdjustment = None, relative_poses_path=None,
+                 choosing_method=None, **kwargs):
 
         self.keyframes = [0]
         self.graph = gtsam.NonlinearFactorGraph()
@@ -148,7 +148,7 @@ class PoseGraph:
         else:
             choosing_method(self, **kwargs)
 
-    def choose_keyframes_median(self, median=0.6):
+    def choose_keyframes_median(self, median=FRAC):
         while self.keyframes[-1] < len(self.tracks_db.frame_ids) - 1:
             tracks_in_keyframe = self.tracks_db.get_track_ids(self.keyframes[-1])
             end_frames = sorted([self.tracks_db.tracks[track].frame_ids[-1] for track in tracks_in_keyframe])

@@ -19,11 +19,11 @@ class Data:
         self.ba = None
         self.pose_graph = None
 
-    def load_data(self, ba: bool = True, tracks_db: bool = True, T_arr: bool = True, pose_graph: bool = True):
-        self.T_arr = self.get_T_arr()
-        self.tracks_db = self.get_tracks_db()
-        self.ba = self.get_ba()
-        # self.pose_graph = self.get_pose_graph()
+    def load_data(self,pose_graph: bool = True, ba: bool = True, tracks_db: bool = True, T_arr: bool = True):
+        self.T_arr = self.get_T_arr() if T_arr else None
+        self.tracks_db = self.get_tracks_db() if tracks_db else None
+        self.ba = self.get_ba() if ba else None
+        self.pose_graph = self.get_pose_graph() if pose_graph else None
 
     def get_T_arr(self):
         if self.T_arr is None or self.inliers_lst is None or self.percents_lst is None:
@@ -60,12 +60,10 @@ class Data:
             try:
                 self.pose_graph = load_pos_graph(PG_PATH)
             except FileNotFoundError:
-                self.pose_graph = create_pose_graph(self.ba)
+                self.pose_graph = create_pose_graph(tracks_db=self.tracks_db, T_arr=self.T_arr, ba=self.ba)
                 save_pos_graph(self.pose_graph, PG_PATH)
 
         return self.pose_graph
-
-
 
 
 def create_T_arr():
@@ -96,12 +94,19 @@ def create_ba(tracks_db, T_arr):
     ba = BundleAdjustment(tracks_db, T_arr)
     ba.choose_keyframes('end_frame')
     ba.solve()
+    print("finished creating ba")
     return ba
 
 
-def create_pose_graph(tracks_db: TracksDB, T_arr):
+def create_pose_graph(tracks_db: TracksDB = None, T_arr=None, ba: BundleAdjustment = None):
     print("creating pose graph...")
-    assert (tracks_db.frame_ids == T_arr.shape[0]), "tracks_db and T_arr must have the same number of frames"
-    pg = PoseGraph(tracks_db, T_arr)
+    if ba is not None:
+        pg = PoseGraph(ba=ba)
+    else:
+        assert (tracks_db is not None), "tracks_db or ba must be given"
+        assert (T_arr is not None), "tracks_db or ba must be given"
+        assert (tracks_db.frame_ids == T_arr.shape[0]), "tracks_db and T_arr must have the same number of frames"
+        pg = PoseGraph(tracks_db=tracks_db, T_arr=T_arr)
+
     pg.solve()
     return pg
