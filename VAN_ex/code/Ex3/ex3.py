@@ -220,14 +220,15 @@ def plot_camera_trajectory(camera_pos, ground_truth_pos):
     plt.show()
 
 
-def plot_matches_and_supporters(left0, left1, left0_inliers, left1_inliers, supporters_idx):
+def plot_matches_and_supporters(left0, left1, left0_inliers, left1_inliers, supporters_idx, idxs=""):
     """
     Plot on images left0 and left1 the matches, with supporters in
     different color.
     """
     fig = plt.figure()
     fig.suptitle(f"Left0 and Left1 matches & supporters \n"
-                 f"Number of supporters: {len(supporters_idx)}, {len(supporters_idx) / len(left0_inliers) * 100:.2f}%")
+                 f"Number of supporters: {len(supporters_idx)}, {len(supporters_idx) / len(left0_inliers) * 100:.2f}% \n"
+                 f"images are: {idxs}")
 
     fig.add_subplot(2, 1, 1)
     plt.imshow(left0, cmap='gray')
@@ -365,7 +366,7 @@ def refine_ransac(best_supporters, left1_inliers, right1_inliers, pair0_p3d, ite
     return left_ext_mat, best_supporters
 
 
-def track_movement_successive(idxs):
+def track_movement_successive(idxs, plot: bool = False):
     """
     Track movement between two images.
     """
@@ -379,7 +380,10 @@ def track_movement_successive(idxs):
 
     # calculate the best extrinsic matrix using RANSAC to translate between the two coordinate systems
     best_ext_mat, supporters_idx = ransac_pnp(pair0_p3d, left1_inliers, right1_inliers)
-    # plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx)
+
+    if plot:
+        plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx,
+                                    f"Left {idxs[0]} to Left {idxs[1]}")
 
     inliers = (left0_inliers[supporters_idx], right0_inliers[supporters_idx], left1_inliers[supporters_idx],
                right1_inliers[supporters_idx])

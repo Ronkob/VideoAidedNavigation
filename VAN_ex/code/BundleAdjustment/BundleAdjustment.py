@@ -27,6 +27,7 @@ def load_ba(path):
     """
     with open(path, 'rb') as file:
         ba = pickle.load(file)
+    print("ba loaded")
     return ba
 
 

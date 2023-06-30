@@ -84,15 +84,15 @@ def plot_initial_est_on_axs(initial_est, camera_pos, ground_truth_pos, landmarks
     fig.show()
 
 
-def plot_scene_from_above(result, points=None, question=None, marginals=None, scale=1):
+def plot_scene_from_above(result, question=None, marginals=None, scale=1):
     """
     Function that plots a scene of a certain bundle window from above.
     """
-    plot_scene_3d(result, points=points, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
+    plot_scene_3d(result, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
                   title="scene from above", question=question, marginals=marginals, scale=scale)
 
 
-def plot_scene_3d(result, init_view=None, points=None, title="3d scene", marginals=None, scale=1, question='q5_2'):
+def plot_scene_3d(result, init_view=None, title="3d scene", marginals=None, scale=1, question='q5_2'):
     """
     Function that plots a scene of a certain bundle window in 3D.
     """
@@ -100,18 +100,10 @@ def plot_scene_3d(result, init_view=None, points=None, title="3d scene", margina
         init_view = {'azim': -15, 'elev': 200, 'vertical_axis': 'y'}
     fig = plt.figure(num=0, figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
-    # if points is None:
-    #     points = gtsam.utilities.extractPoint3(result)
-    #
-    # for point in points:
-    #     gtsam_plot_utils.plot_point3_on_axes(ax, point, 'k.')
 
     gtsam_plot_utils.plot_trajectory(0, result, scale=scale, marginals=marginals)
     gtsam_plot_utils.set_axes_equal(0)
 
-    # ax.set_zlim3d(0, 50)
-    # ax.set_xlim3d(-20, 30)
-    # ax.set_ylim3d(-45, 5)
     ax.view_init(**init_view)
     fig.suptitle(title, fontsize=16, fontweight='bold')
     fig.savefig(question + ' ' + title + '.png')

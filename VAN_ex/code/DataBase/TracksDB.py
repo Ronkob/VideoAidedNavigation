@@ -224,12 +224,20 @@ class TracksDB:
         return next_frame_supporters_kp[0][reminder_kp_idxs], next_frame_supporters_kp[1][reminder_kp_idxs]
 
 
-def create_loop_tracks(left0_inliers, left1_inliers, i, n):
+def create_loop_tracks(first_frame_inliers, second_frame_inliers, first_frame, second_frame):
     loop_tracks = []
+    left0_inliers, right0_inliers = first_frame_inliers
+    left1_inliers, right1_inliers = second_frame_inliers
 
-    for j in range(len(left0_inliers)):
-        left0_inlier, left1_inlier = left0_inliers[i], left1_inliers[i]
-        cur_track = Track(j, [i, n], [left0_inlier, left1_inlier])
+    for inlier in range(len(left0_inliers)):
+        cur_track = Track(inlier, [], {})
+        cur_track.add_frame(first_frame, (left0_inliers[inlier], right0_inliers[inlier]))
+        cur_track.add_frame(second_frame, (left1_inliers[inlier], right1_inliers[inlier]))
+        # cur_track = Track(inlier, [first_frame, second_frame], [first_inlier, second_inlier])
         loop_tracks.append(cur_track)
 
-    return loop_tracks
+    loop_tracks_db = TracksDB()
+    for track in loop_tracks:
+        loop_tracks_db.add_new_track(track)
+
+    return loop_tracks_db

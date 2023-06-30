@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 from tqdm import tqdm
 
+from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.BundleAdjustment.BundleAdjustment import BundleAdjustment, FRAC
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
 from VAN_ex.code.PreCalcData.paths_to_data import RELATIVES_PATH
@@ -73,7 +74,7 @@ class PoseGraph:
 
     def init_from_ba(self, ba: BundleAdjustment):
         self.keyframes = ba.keyframes
-        self.bundle_windows = self.create_bundle_windows(self.keyframes)
+        self.bundle_windows = ba.bundle_windows
         self.tracks_db = ba.tracks_db
         self.T_arr = ba.T_arr
 
@@ -176,7 +177,7 @@ class PoseGraph:
         self.keyframes.append(len(self.tracks_db.frame_ids) - 1)
         print('First 10 Keyframes: ', self.keyframes[:10])
 
-    def rel_cov_and_pos_for_bundle(self, bundle):
+    def rel_cov_and_pos_for_bundle(self, bundle: BundleWindow):
         first_kf, second_kf = bundle.frames_idxs[0], bundle.frames_idxs[-1]
         keys = gtsam.KeyVector()
         keys.append(gtsam.symbol('c', first_kf))

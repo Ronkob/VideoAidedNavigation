@@ -535,4 +535,4 @@ def calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov):
 
 
 def weight_func(cov):
-    return np.sqrt(np.linalg.inv(cov))
+    return np.sqrt(np.linalg.det(cov))

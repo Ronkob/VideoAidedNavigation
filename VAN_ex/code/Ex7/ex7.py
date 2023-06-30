@@ -5,7 +5,9 @@ import numpy as np
 
 from gtsam.utils import plot
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
+from VAN_ex.code.PreCalcData.PreCalced import Data
 from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils
 from VAN_ex.code.Ex3.ex3 import calculate_relative_transformations, track_movement_successive
 from VAN_ex.code.DataBase.TracksDB import TracksDB, create_loop_tracks
@@ -13,16 +15,16 @@ from VAN_ex.code.DataBase.Track import Track
 from VAN_ex.code.utils.auxilery_plot_utils import plot_scene_from_above, plot_scene_3d
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
 from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph, save_pg, load_pg
-from VAN_ex.code.PreCalcData.paths_to_data import RELATIVES_PATH
+from VAN_ex.code.PreCalcData import paths_to_data
 
 from dijkstar import find_path
 
-DB_PATH = os.path.join('..', 'Ex4', 'tracks_db.pkl')
-T_ARR_PATH = os.path.join('..', 'Ex3', 'T_arr.npy')
 
-MAHAL_THRESH = 0.5
+# Constants
+MAHAL_THRESH = 100
 MAX_CANDIDATES = 3
 INLIERS_PREC_THRESH = 70
+
 
 loops_arr = []
 
@@ -54,12 +56,12 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
         # Calculate Mahalanobis distance
         mahalanobis_dist = utils.calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov)
         # print the mahalanobis distance with no new line
+
         # Choose a threshold to determine if the candidate advances to the next (expensive) stage
         if mahalanobis_dist < MAHAL_THRESH:
             print(i, ":", mahalanobis_dist)
             candidate_frames[i] = mahalanobis_dist
 
-    print(n_idx, ":", candidate_frames)
     if not candidate_frames:
         return []
     sorted_candidates = sorted(candidate_frames.items(), key=lambda x: x[1])
@@ -67,7 +69,7 @@ def q7_1(pose_graph: PoseGraph, n_idx: int):
 
 
 @utils.measure_time
-def q7_2(candidates, n_idx):
+def q7_2(candidates, n_idx, key_frames):
     """
     Consensus Matching - perform consensus match between the two candidate frames. (See exercise 3)
     Set a threshold for the number of inliers that indicates a successful match.
@@ -75,30 +77,38 @@ def q7_2(candidates, n_idx):
     """
     fitted_candidates = []
     for candidate in candidates:
-        left_ext_mat, cur_inliers, inliers_precent = track_movement_successive([n_idx, candidate])
+        key_frame_num, mahalanobis_dist = candidate
+        curr_frame = key_frames[n_idx]
+        candidate_frame = key_frames[key_frame_num]
+        left_ext_mat, cur_inliers, inliers_precent = track_movement_successive([candidate_frame, curr_frame], plot=True)
         if inliers_precent > INLIERS_PREC_THRESH:
-            left0_inliers, _, left1_inliers, _ = cur_inliers
-            fitted_candidates.append([left0_inliers, left1_inliers, candidate])
-            loops_arr.append([n_idx, candidate])
+            left0_inliers, right0_inliers, left1_inliers, right1_inliers = cur_inliers
+            fitted_candidates.append([(left0_inliers, right0_inliers), (left1_inliers, right1_inliers), candidate])
+            loops_arr.append([candidate_frame, curr_frame])
 
     return fitted_candidates
 
 
 @utils.measure_time
-def q7_3(fitters, n_idx, pose_graph):
+def q7_3(fitters, n_idx, pose_graph: PoseGraph):
     """
     Relative Pose Estimation - using the inlier matches, perform a small Bundle
     optimization to extract the relative pose of the two frames as well as
     its covariance.
     """
     relatives = []
+    key_frames = pose_graph.keyframes
 
     for data in fitters:
-        left0_inliers, left1_inliers, candidate = data
-        loop_tracks = create_loop_tracks(left0_inliers, left1_inliers, candidate, n_idx)
-        bundle = Bundle(candidate, n_idx, loop_tracks)
-        rel_pose, rel_cov = pose_graph.rel_cov_and_pos_for_bundle(bundle)
-        relatives.append((rel_pose, rel_cov, candidate))
+        first_inliers, second_inliers, candidate = data
+        key_frame, mahalanobis_dist = candidate
+        curr_frame, candidate_frame = key_frames[n_idx], key_frames[key_frame]
+        loop_tracks_db = create_loop_tracks(first_inliers, second_inliers, candidate_frame, curr_frame)
+        bundle = Bundle(candidate_frame, curr_frame, True)
+        bundle.create_graph_v2(T_arr=pose_graph.T_arr, tracks_db=loop_tracks_db)
+        bundle.optimize()
+        rel_cov, rel_pose = pose_graph.rel_cov_and_pos_for_bundle(bundle)
+        relatives.append((rel_cov, rel_pose, candidate))
 
     return relatives
 
@@ -109,13 +119,14 @@ def q7_4(relatives, pose_graph, n_idx):
     Update the Pose Graph - add the resulting synthetic measurement to the pose
     graph and optimize it to update the trajectory estimate.
     """
-    for rel_pose, rel_cov, i in relatives:
-        pose_graph.vertex_graph.add_edge(i, n_idx, utils.weight_func(rel_cov))
-        cur_symbol = gtsam.symbol('c', n_idx)
-        prev_symbol = gtsam.symbol('c', i)
+    for rel_cov, rel_pose, candidate in relatives:
+        frame, mahalanobis_dist = candidate
+        first_symbol = gtsam.symbol('c', frame)
+        second_symbol = gtsam.symbol('c', n_idx)
         cov = gtsam.noiseModel.Gaussian.Covariance(rel_cov)
-        factor = gtsam.BetweenFactorPose3(prev_symbol, cur_symbol, rel_pose, cov)
+        factor = gtsam.BetweenFactorPose3(first_symbol, second_symbol, rel_pose, cov)
         pose_graph.graph.add(factor)
+        pose_graph.vertex_graph.add_edge(frame, n_idx, utils.weight_func(rel_cov))
 
     pose_graph.solve()
 
@@ -134,23 +145,18 @@ def run_ex7():
     """
     np.random.seed(1)
     # Load tracks DB
-    tracks_db = TracksDB.deserialize(DB_PATH)
-    T_arr = np.load(T_ARR_PATH)
-    rel_t_arr = calculate_relative_transformations(T_arr)
+    data = Data()
+    data.load_data(ba=True)
+    pose_graph = data.get_pose_graph()
 
-    pose_graph = load_pg('pose_graph.pkl')
-    if pose_graph is None:
-        pose_graph = PoseGraph(tracks_db, rel_t_arr)
-        pose_graph.solve()
-        # PoseGraph.save(pose_graph, 'pose_graph.pkl')
+    print(f'pose graph has {len(pose_graph.keyframes)} keyframes and {len(pose_graph.tracks_db.tracks)} tracks')
 
-    print(f'pose graph has {len(pose_graph.keyframes)} keyframes and {len(pose_graph.tracks)} tracks')
-
-    auxilery_plot_utils.plot_scene_from_above(pose_graph.result, marginals=pose_graph.get_marginals(), question='q7')
+    auxilery_plot_utils.plot_scene_from_above(pose_graph.result, question='q7 no marginals')
 
     # For each key frame cn in the pose graph loop over previous keyframes ci, i < n, and perform
+    key_frames = pose_graph.keyframes
     # steps 7.1-7.4:
-    for i in range(1, len(pose_graph.keyframes)):
+    for i in tqdm(range(1, len(key_frames))):
         # Detect Loop Closure Candidates
         candidates = q7_1(pose_graph, i)
 
@@ -160,7 +166,7 @@ def run_ex7():
         else:
             print(f'candidates for {i}: {candidates}')
             # Consensus Matching
-            fitters = q7_2(candidates, i)
+            fitters = q7_2(candidates, i, key_frames)
 
             # Relative Pose Estimation
             relatives = q7_3(fitters, i, pose_graph)

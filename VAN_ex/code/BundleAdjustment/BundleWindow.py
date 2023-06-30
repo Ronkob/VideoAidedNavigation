@@ -13,7 +13,7 @@ MIN_Y = -10
 
 class Bundle:
 
-    def __init__(self, first_frame, last_frame, loop_tracks=None):
+    def __init__(self, first_frame, last_frame, loop_tracks=False):
         if loop_tracks:
             self.frames_idxs = [first_frame, last_frame]
         else:
@@ -25,7 +25,6 @@ class Bundle:
         self.optimizer = None
         self.prior_factor = None
         self.result = None
-        self.loop_tracks = loop_tracks
 
     def get_marginals(self):
         # print("Getting marginals...")
@@ -85,11 +84,8 @@ class Bundle:
             last_frame = min(self.frames_idxs[-1], tracks_db.tracks[track_id].get_frame_ids()[-1])
             if first_frame > last_frame:
                 continue
-            if self.loop_tracks:
-                tracks = self.loop_tracks
-            else:
-                tracks = tracks_db.tracks[track_id]
-            self.extract_factors_to_gtsam(track=tracks, first_frame=first_frame, last_frame=last_frame,
+            track = tracks_db.tracks[track_id]
+            self.extract_factors_to_gtsam(track=track, first_frame=first_frame, last_frame=last_frame,
                                           gtsam_frame_to_triangulate_from=last_stereo, K=K)
 
     def extract_factors_to_gtsam(self, track: Track, first_frame, last_frame, gtsam_frame_to_triangulate_from, K):
@@ -123,6 +119,10 @@ class Bundle:
         self.initial_estimates.insert(symbol, p3d)
 
         for frame_id in range(first_frame, last_frame + 1):
+            if frame_id not in self.frames_idxs:
+                # this is for the loop tracks, which only have two frames in the bundle window
+                continue
+
             xl, xr, y = left_locations[frame_id][0], right_locations[frame_id][0], left_locations[frame_id][1]
             inner_point = gtsam.StereoPoint2(xl, xr, y)
 
