@@ -1,10 +1,8 @@
 import gtsam
 import numpy as np
 
-from VAN_ex.code.Ex3 import ex3 as ex3_utils
 from VAN_ex.code.DataBase.TracksDB import TracksDB
 from VAN_ex.code.DataBase.Track import Track
-from VAN_ex.code.Ex5 import ex5 as ex5_utils
 from VAN_ex.code.utils import projection_utils, utils
 
 MAX_Z = 200

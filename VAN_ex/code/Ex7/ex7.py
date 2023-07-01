@@ -7,6 +7,7 @@ from gtsam.utils import plot
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+from VAN_ex.code.Ex3 import ex3
 from VAN_ex.code.PreCalcData.PreCalced import Data
 from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils
 from VAN_ex.code.Ex3.ex3 import calculate_relative_transformations, track_movement_successive
@@ -19,12 +20,10 @@ from VAN_ex.code.PreCalcData import paths_to_data
 
 from dijkstar import find_path
 
-
 # Constants
-MAHAL_THRESH = 100
+MAHAL_THRESH = 50
 MAX_CANDIDATES = 3
-INLIERS_PREC_THRESH = 70
-
+INLIERS_PREC_THRESH = 75
 
 loops_arr = []
 
@@ -80,7 +79,8 @@ def q7_2(candidates, n_idx, key_frames):
         key_frame_num, mahalanobis_dist = candidate
         curr_frame = key_frames[n_idx]
         candidate_frame = key_frames[key_frame_num]
-        left_ext_mat, cur_inliers, inliers_precent = track_movement_successive([candidate_frame, curr_frame], plot=True)
+        left_ext_mat, cur_inliers, inliers_precent = track_movement_successive([candidate_frame, curr_frame],
+                                                                               plot=False)
         if inliers_precent > INLIERS_PREC_THRESH:
             left0_inliers, right0_inliers, left1_inliers, right1_inliers = cur_inliers
             fitted_candidates.append([(left0_inliers, right0_inliers), (left1_inliers, right1_inliers), candidate])
@@ -130,15 +130,47 @@ def q7_4(relatives, pose_graph, n_idx):
 
     pose_graph.solve()
 
-
 @utils.measure_time
 def q7_5():
     """
     Display plots.
     """
-    print(len(loops_arr))
+    no_loop_closure = Data().get_pose_graph()
+    with_loop_closure = load_pg('pg_loop_closure.pkl')
 
+    graphs_lst = [no_loop_closure, with_loop_closure]
+    titles = ['Bundle Adjustment', 'Loop Closure']
+    auxilery_plot_utils.plot_pose_graphs(graphs_lst, titles)
 
+    # no_loop_closure = Data().get_pose_graph()
+    # no_loop_closure_rel_cameras = no_loop_closure.get_opt_cameras()
+    #
+    # with_loop_closure = load_pg('pg_loop_closure.pkl')
+    # with_loop_closure_rel_cameras = with_loop_closure.get_opt_cameras()
+    #
+    # ground_truth_keyframes = \
+    #     np.array(ex3.calculate_camera_trajectory(ex3.get_ground_truth_transformations()))[
+    #         no_loop_closure.keyframes]
+    #
+    # loop_cameras_trajectory = projection_utils.get_trajectory_from_gtsam_poses(with_loop_closure_rel_cameras)
+    # no_loop_cameras_trajectory = projection_utils.get_trajectory_from_gtsam_poses(no_loop_closure_rel_cameras)
+    # initial_est = utils.get_initial_estimation(rel_t_arr=no_loop_closure.T_arr)[no_loop_closure.keyframes]
+    #
+    # fig, axes = plt.subplots(figsize=(6, 6))
+    # fig = auxilery_plot_utils.plot_ground_truth_trajectory(ground_truth_keyframes, fig)
+    # fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=initial_est, fig=fig, label="initial estimate",
+    #                                                  color='green')
+    # fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=no_loop_cameras_trajectory, fig=fig,
+    #                                                  label="BA estimation", color='orange')
+    # fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=loop_cameras_trajectory, fig=fig,
+    #                                                  label="loop closure estimation", color='red')
+    # legend_element = plt.legend(loc='upper left', fontsize=12)
+    # fig.gca().add_artist(legend_element)
+    # fig.savefig('q7_all all trajectories.png')
+    # fig.show()
+    # plt.clf()
+
+@utils.measure_time
 def run_ex7():
     """
     Runs all exercise 7 sections.
@@ -146,7 +178,6 @@ def run_ex7():
     np.random.seed(1)
     # Load tracks DB
     data = Data()
-    data.load_data(ba=True)
     pose_graph = data.get_pose_graph()
 
     print(f'pose graph has {len(pose_graph.keyframes)} keyframes and {len(pose_graph.tracks_db.tracks)} tracks')
@@ -174,13 +205,13 @@ def run_ex7():
             # Update the Pose Graph
             q7_4(relatives, pose_graph, i)
 
-    # Display Plots
-    q7_5()
+    # save the loop-closure pose graph to file
+    save_pg(pose_graph, 'pg_loop_closure.pkl')
 
 
 def main():
-    run_ex7()
-
+    # run_ex7()
+    q7_5()
 
 if __name__ == '__main__':
     main()

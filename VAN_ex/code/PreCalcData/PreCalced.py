@@ -57,6 +57,7 @@ class Data:
         return self.tracks_db
 
     def get_ba(self):
+        print("getting ba...")
         if self.ba is None:
             try:
                 self.ba = load_ba(BA_PATH)
@@ -72,7 +73,7 @@ class Data:
             try:
                 self.pose_graph = load_pg(PG_PATH)
             except FileNotFoundError:
-                self.pose_graph = create_pose_graph(tracks_db=self.tracks_db, rel_T_arr=self.rel_t_arr, ba=self.ba)
+                self.pose_graph = create_pose_graph(tracks_db=self.tracks_db, rel_T_arr=self.rel_t_arr, ba=self.get_ba())
                 save_pg(self.pose_graph, PG_PATH)
                 print("pose graph saved to {}".format(PG_PATH))
         return self.pose_graph

@@ -83,3 +83,5 @@ def calculate_camera_trajectory(relative_T_arr):
     for T in relative_T_arr:
         trajectory.append(calc_relative_camera_pos(T))
     return np.array(trajectory)
+
+

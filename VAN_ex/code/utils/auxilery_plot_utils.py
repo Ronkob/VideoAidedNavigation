@@ -1,15 +1,19 @@
 # a function that gets a Track object, and plots its points tracking
+import numpy as np
+import matplotlib.path as mpath
 from matplotlib import pyplot as plt
 
 from VAN_ex.code.DataBase.Track import Track
-from VAN_ex.code.utils import gtsam_plot_utils
+from VAN_ex.code.Ex3 import ex3
+from VAN_ex.code.PoseGraph.PoseGraph import load_pg
+from VAN_ex.code.utils import gtsam_plot_utils, projection_utils, utils
 
 
 def plot_tracking_quality(track: Track):
     pass
 
 
-def plot_ground_truth_trajectory(ground_truth_pos, fig=None):
+def plot_ground_truth_trajectory(ground_truth_pos, fig=None, color='blue'):
     if fig is None:
         fig, ax = plt.subplots()
     else:
@@ -17,8 +21,11 @@ def plot_ground_truth_trajectory(ground_truth_pos, fig=None):
     # make the title in a beautiful, large font
     ax.set_title('Trajectory of the left camera', fontsize=20, fontweight='bold')
 
-    # plot the ground truth trajectory
-    plot_camera_trajectory(ground_truth_pos, color='blue', fig=fig, label='ground truth')
+    draw_car_on_trajectory(ground_truth_pos[::10], color=color, ax=ax)
+
+    # plot the line connecting the ground truth trajectory points
+    ax.plot(ground_truth_pos[:, 0], ground_truth_pos[:, 2], color=color, alpha=0.5, linewidth=5, label='ground truth')
+
     # get the min and max values of the x and z coordinates of the ground truth trajectory
     min_x = min(ground_truth_pos[:, 0])
     max_x = max(ground_truth_pos[:, 0])
@@ -33,9 +40,33 @@ def plot_ground_truth_trajectory(ground_truth_pos, fig=None):
     return fig
 
 
-def plot_camera_trajectory(camera_pos,  fig, label:str, color: str = 'red', size: int = 7, alpha: float = 0.5):
+def get_alpha_from_poses(pose1, pose2):
+    """
+    Get the alpha angle between two poses.
+    :param pose1: the first pose
+    :param pose2: the second pose
+    :return: the alpha angle between the two poses
+    """
+    # calculate the angle in degrees between the two poses in the x-z plane
+    alpha = np.arctan2(pose2[2] - pose1[2], pose2[0] - pose1[0])
+    alpha = np.rad2deg(alpha)
+    return alpha
+
+
+def draw_car_on_trajectory(camera_pos, ax, color):
+    # draw the car on the trajectory
+    for i in range(camera_pos.shape[0])[::50]:
+        alpha = get_alpha_from_poses(camera_pos[i, :], camera_pos[i + 1, :])
+        car_marker = get_rotated_car_marker(alpha)
+        ax.plot(camera_pos[i, 0], camera_pos[i, 2], marker=car_marker, color=color, markersize=25, alpha=0.8)
+
+
+def plot_camera_trajectory(camera_pos, fig, label: str, color: str = 'red', size: int = 7, alpha: float = 0.5,
+                           marker: str = 'o', draw_car: bool = False):
     """
     Plot the trajectory of the left camera.
+    :param marker:
+    :param draw_car:
     :param alpha:
     :param size:
     :param fig: the figure to plot on
@@ -49,7 +80,10 @@ def plot_camera_trajectory(camera_pos,  fig, label:str, color: str = 'red', size
         fig, ax = plt.subplots()
     else:
         ax = fig.gca()
-    ax.scatter(camera_pos[:, 0], camera_pos[:, 2], s=size, alpha=0.5, c=color, label=label)
+    # ax.scatter(camera_pos[:, 0], camera_pos[:, 2], s=size, alpha=alpha, color=color, label=label, marker=marker)
+    ax.plot(camera_pos[:, 0], camera_pos[:, 2], color=color, linewidth=5, alpha=0.5, label=label)
+    if draw_car:
+        draw_car_on_trajectory(camera_pos, ax, color)
     return fig
 
 
@@ -69,43 +103,81 @@ def plot_landmarks_and_camera_poses(landmarks, camera_pos, ground_truth_pos, fig
     return fig
 
 
-def plot_initial_est_on_axs(initial_est, camera_pos, ground_truth_pos, landmarks=None, fig=None):
-    if fig is None:
-        fig = plot_camera_trajectory(camera_pos, ground_truth_pos)
-        if landmarks:
-            fig = plot_landmarks_and_camera_poses(landmarks, camera_pos, ground_truth_pos, fig)
-
-    ax = fig.gca()
-    ax.set_title('Initial estimation compare')
-    # plot the initial camera positions
-    ax.scatter(initial_est[:, 0], initial_est[:, 2], s=5, alpha=0.5, c='blue', label='initial_estimation')
-    fig.legend()
-    fig.savefig("initial_estimation.png")
-    fig.show()
-
-
-def plot_scene_from_above(result, question=None, marginals=None, scale=1):
+def plot_scene_from_above(result, question=None, marginals=None, scale=1, fig_num=0):
     """
     Function that plots a scene of a certain bundle window from above.
     """
-    plot_scene_3d(result, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'},
-                  title="scene from above", question=question, marginals=marginals, scale=scale)
+    plot_scene_3d(result, init_view={'azim': 0, 'elev': -90, 'vertical_axis': 'y'}, title="scene from above",
+                  question=question, marginals=marginals, scale=scale, fig_num=fig_num)
 
 
-def plot_scene_3d(result, init_view=None, title="3d scene", marginals=None, scale=1, question='q5_2'):
+def plot_scene_3d(result, init_view=None, title="3d scene", marginals=None, scale=1, question='q5_2', fig_num=0):
     """
     Function that plots a scene of a certain bundle window in 3D.
     """
     if init_view is None:
         init_view = {'azim': -15, 'elev': 200, 'vertical_axis': 'y'}
-    fig = plt.figure(num=0, figsize=(8, 8))
+    fig = plt.figure(num=fig_num, figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
 
-    gtsam_plot_utils.plot_trajectory(0, result, scale=scale, marginals=marginals)
-    gtsam_plot_utils.set_axes_equal(0)
+    gtsam_plot_utils.plot_trajectory(fig_num, result, scale=scale, marginals=marginals)
+    gtsam_plot_utils.set_axes_equal(fig_num)
 
     ax.view_init(**init_view)
     fig.suptitle(title, fontsize=16, fontweight='bold')
-    fig.savefig(question + ' ' + title + '.png')
-    # fig.show()
+    fig.savefig(question + ' ' + title + '.png')  # fig.show()  # plt.clf()
+
+
+def get_rotated_car_marker(alpha):
+    # Create a sedan car shape
+    sedan_car = np.array([
+        [-0.4, 0.8],  # Left windshield
+        [0.4, 0.7],  # Right windshield
+        [1, 0.5],  # Top right
+        [1, 0],  # Bottom right
+        [0.7, 0],  # Right wheel
+        [0.5, -0.2],  # Right wheel bottom
+        [0.4, 0],  # Right wheel inner
+        [-0.4, 0],  # Left wheel inner
+        [-0.5, -0.2],  # Left wheel bottom
+        [-0.7, 0],  # Left wheel
+        [-1, 0]  # Back to start
+    ])
+    # Convert alpha to radians
+    alpha_rad = np.radians(alpha)
+
+    # Define the rotation matrix
+    rotation_matrix = np.array([[np.cos(alpha_rad), -np.sin(alpha_rad)], [np.sin(alpha_rad), np.cos(alpha_rad)]])
+
+    # Apply the rotation to each point
+    car_rotated = np.dot(sedan_car, rotation_matrix.T)
+
+    # Create the Path object
+    car_marker = mpath.Path(car_rotated, None, closed=True)
+
+    return car_marker
+
+
+def plot_pose_graphs(graph_lst, titles):
+    fig, axes = plt.subplots(figsize=(8, 8))
+    color_map = plt.get_cmap('rainbow')  # Use colormap of your choice
+    num_graphs = len(graph_lst)
+    colors = [color_map(i) for i in np.linspace(0, 1, num_graphs + 2)]
+
+    ground_truth_keyframes = np.array(ex3.calculate_camera_trajectory(ex3.get_ground_truth_transformations()))
+    fig = plot_ground_truth_trajectory(ground_truth_keyframes, fig, colors[0])
+
+    rel_arr = ex3.calculate_relative_transformations(T_arr=graph_lst[0].T_arr)
+    initial_est = utils.get_initial_estimation(rel_t_arr=rel_arr)[graph_lst[0].keyframes]
+    fig = plot_camera_trajectory(camera_pos=initial_est, fig=fig, label="initial estimate", color=colors[1])
+
+    for graph, title, color in zip(graph_lst, titles, colors[2:]):
+        curr_rel_cameras = graph.get_opt_cameras()
+        curr_trajectory = projection_utils.get_trajectory_from_gtsam_poses(curr_rel_cameras)
+        fig = plot_camera_trajectory(camera_pos=curr_trajectory, fig=fig, label=title, color=color, draw_car=True)
+
+    legend_element = plt.legend(loc='upper left', fontsize=12)
+    fig.gca().add_artist(legend_element)
+    fig.savefig('q7_all all trajectories.png')
+    fig.show()
     plt.clf()

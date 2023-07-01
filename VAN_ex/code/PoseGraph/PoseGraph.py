@@ -8,18 +8,20 @@ from tqdm import tqdm
 from VAN_ex.code.BundleAdjustment import BundleWindow
 from VAN_ex.code.BundleAdjustment.BundleAdjustment import BundleAdjustment, FRAC
 from VAN_ex.code.BundleAdjustment.BundleWindow import Bundle
-from VAN_ex.code.PreCalcData.paths_to_data import RELATIVES_PATH
-from VAN_ex.code.utils import utils
+from VAN_ex.code.PreCalcData.paths_to_data import RELATIVES_PATH, PG_PATH
+from VAN_ex.code.utils import utils, projection_utils
 # from VAN_ex.code.PoseGraph.VertexGraph import VertexGraph
 from dijkstar import Graph
 
 
-def save_pg(pose_graph, path):
+def save_pg(pose_graph, path=PG_PATH):
     """
     Save the pose graph to a file.
     """
+    print("saving pose graph to: ", path)
     with open(path, 'wb') as file:
         pickle.dump(pose_graph, file)
+    print("pose graph saved")
 
 
 def load_pg(path):
@@ -49,6 +51,7 @@ class PoseGraph:
         self.initial_estimates = gtsam.Values()
         self.result = None
         self.bundle_windows = []
+        self.cameras = []
 
         if ba is not None:
             self.init_from_ba(ba)
@@ -85,6 +88,21 @@ class PoseGraph:
         for bundle in tqdm(bundle_windows):
             bundle.create_graph_v2(self.T_arr, self.tracks_db)
             bundle.optimize()
+
+    def get_opt_cameras(self):
+        """
+        Get the optimized camera poses.
+        """
+        cameras_poses = []
+        for camera_sym in self.cameras:
+            cam_pose = self.result.atPose3(camera_sym)
+            cameras_poses.append(cam_pose)
+
+        return cameras_poses
+
+    def get_opt_rel_cameras(self):
+        cameras = projection_utils.convert_rel_gtsam_trans_to_global(self.get_opt_cameras())
+        return cameras
 
     @utils.measure_time
     def calculate_rel_cov_and_poses(self, bundle_windows):
@@ -133,6 +151,7 @@ class PoseGraph:
         init_pose = gtsam.Pose3()
         init_cam = gtsam.symbol('c', 0)
         self.initial_estimates.insert(init_cam, init_pose)
+        self.cameras.append(init_cam)
 
         # Add a prior factor to graph
         sigmas = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]) ** 7
@@ -153,6 +172,7 @@ class PoseGraph:
             # Add initial estimate
             cur_world_pose = cur_world_pose.compose(self.rel_poses[i])
             self.initial_estimates.insert(camera, cur_world_pose)
+            self.cameras.append(camera)
 
             prev_cam = camera
 
