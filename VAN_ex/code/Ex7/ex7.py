@@ -130,45 +130,40 @@ def q7_4(relatives, pose_graph, n_idx):
 
     pose_graph.solve()
 
+
 @utils.measure_time
 def q7_5():
     """
     Display plots.
     """
-    no_loop_closure = Data().get_pose_graph()
-    with_loop_closure = load_pg('pg_loop_closure.pkl')
 
-    graphs_lst = [no_loop_closure, with_loop_closure]
-    titles = ['Bundle Adjustment', 'Loop Closure']
-    auxilery_plot_utils.plot_pose_graphs(graphs_lst, titles)
+    # How many successful loop closures were detected?
+    loops_array = np.load('loops_arr.npy', allow_pickle=True)
+    print(f'Number of successful loop closures: {len(loops_array)}')
+    print(loops_array)
 
+    # Plot the match results of a single successful consensus match of your choice.
+    # (For the left images, inliers and outliers in different colors)
+    ex3.track_movement_successive([463, 1221], plot=True)
+
+    # Choose 5 versions of the pose graph along the process and plot them (including location covariance).
+    #     TODO: implement
+
+    # Plot a graph of the absolute location error for the whole pose graph both with and without loop closures.
+    #     TODO: implement
+
+    # Plot a graph of the location uncertainty size for the whole pose graph both with and without loop closures.
+    # (What measure of uncertainty size did you choose?)
+    #     TODO: implement
+
+    # Plot the pose graph locations along with the ground truth both with and without loop closures.
     # no_loop_closure = Data().get_pose_graph()
-    # no_loop_closure_rel_cameras = no_loop_closure.get_opt_cameras()
-    #
     # with_loop_closure = load_pg('pg_loop_closure.pkl')
-    # with_loop_closure_rel_cameras = with_loop_closure.get_opt_cameras()
     #
-    # ground_truth_keyframes = \
-    #     np.array(ex3.calculate_camera_trajectory(ex3.get_ground_truth_transformations()))[
-    #         no_loop_closure.keyframes]
-    #
-    # loop_cameras_trajectory = projection_utils.get_trajectory_from_gtsam_poses(with_loop_closure_rel_cameras)
-    # no_loop_cameras_trajectory = projection_utils.get_trajectory_from_gtsam_poses(no_loop_closure_rel_cameras)
-    # initial_est = utils.get_initial_estimation(rel_t_arr=no_loop_closure.T_arr)[no_loop_closure.keyframes]
-    #
-    # fig, axes = plt.subplots(figsize=(6, 6))
-    # fig = auxilery_plot_utils.plot_ground_truth_trajectory(ground_truth_keyframes, fig)
-    # fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=initial_est, fig=fig, label="initial estimate",
-    #                                                  color='green')
-    # fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=no_loop_cameras_trajectory, fig=fig,
-    #                                                  label="BA estimation", color='orange')
-    # fig = auxilery_plot_utils.plot_camera_trajectory(camera_pos=loop_cameras_trajectory, fig=fig,
-    #                                                  label="loop closure estimation", color='red')
-    # legend_element = plt.legend(loc='upper left', fontsize=12)
-    # fig.gca().add_artist(legend_element)
-    # fig.savefig('q7_all all trajectories.png')
-    # fig.show()
-    # plt.clf()
+    # graphs_lst = [no_loop_closure, with_loop_closure]
+    # titles = ['Bundle Adjustment', 'Loop Closure']
+    # auxilery_plot_utils.plot_pose_graphs(graphs_lst, titles)
+
 
 @utils.measure_time
 def run_ex7():
@@ -208,10 +203,17 @@ def run_ex7():
     # save the loop-closure pose graph to file
     save_pg(pose_graph, 'pg_loop_closure.pkl')
 
+    # save loops_arr to file
+    np.save('loops_arr.npy', np.array(loops_arr))
+
+    print(f'pose graph has {len(pose_graph.keyframes)} keyframes and {len(pose_graph.tracks_db.tracks)} tracks')
+    print('We found {} loop closures on frames'.format(len(loops_arr), loops_arr))
+
 
 def main():
     # run_ex7()
     q7_5()
+
 
 if __name__ == '__main__':
     main()

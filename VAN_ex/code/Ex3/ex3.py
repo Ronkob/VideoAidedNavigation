@@ -220,19 +220,18 @@ def plot_camera_trajectory(camera_pos, ground_truth_pos):
     plt.show()
 
 
-def plot_matches_and_supporters(left0, left1, left0_inliers, left1_inliers, supporters_idx, idxs=""):
+def plot_matches_and_supporters(left0, left1, left0_inliers, left1_inliers, supporters_idx, idxs=(0, 1)):
     """
     Plot on images left0 and left1 the matches, with supporters in
     different color.
     """
     fig = plt.figure()
     fig.suptitle(f"Left0 and Left1 matches & supporters \n"
-                 f"Number of supporters: {len(supporters_idx)}, {len(supporters_idx) / len(left0_inliers) * 100:.2f}% \n"
-                 f"images are: {idxs}")
+                 f"Number of supporters: {len(supporters_idx)}, {len(supporters_idx) / len(left0_inliers) * 100:.2f}%")
 
     fig.add_subplot(2, 1, 1)
     plt.imshow(left0, cmap='gray')
-    plt.title("Left0")
+    plt.title("Frame " + str(idxs[0]))
     plt.scatter(left0_inliers[:, 0], left0_inliers[:, 1], s=3, color='blue', label='inliers')
     plt.scatter(left0_inliers[supporters_idx][:, 0], left0_inliers[supporters_idx][:, 1], s=3, color='cyan',
                 label='supporters')
@@ -240,11 +239,13 @@ def plot_matches_and_supporters(left0, left1, left0_inliers, left1_inliers, supp
     plt.tight_layout(h_pad=3, pad=2.5)
     fig.add_subplot(2, 1, 2)
     plt.imshow(left1, cmap='gray')
-    plt.title("Left1")
+    plt.title("Frame " + str(idxs[1]))
     plt.scatter(left1_inliers[:, 0], left1_inliers[:, 1], s=3, color='blue')
     plt.scatter(left1_inliers[supporters_idx][:, 0], left1_inliers[supporters_idx][:, 1], s=3, color='cyan')
 
-    plt.show()
+    # save the figure
+    plt.savefig(f"matches_and_supporters_from_{idxs[0]}_to_{idxs[1]}.png")
+    # plt.show()
 
 
 def get_pair_matches(left_image, right_image, significance=True):
@@ -383,7 +384,7 @@ def track_movement_successive(idxs, plot: bool = False):
 
     if plot:
         plot_matches_and_supporters(left0_image, left1_image, left0_inliers, left1_inliers, supporters_idx,
-                                    f"Left {idxs[0]} to Left {idxs[1]}")
+                                    idxs=idxs)
 
     inliers = (left0_inliers[supporters_idx], right0_inliers[supporters_idx], left1_inliers[supporters_idx],
                right1_inliers[supporters_idx])
