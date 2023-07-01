@@ -22,7 +22,6 @@ In this exercise we will develop the feature-tracking system, which is a key-com
 ## Ex2
 In this exercise we explore a geometric outlier rejection policy and use the stereo matches for triangulation to produce a 3D point cloud.
 
-![image](https://github.com/Dor890/SLAM/assets/64433958/98a48ce7-afca-4daf-bb8f-b344a3d90ea7)
 ![dev_histogram.png](VAN_ex%2Fmedia%2Fdev_histogram.png)
 
 ## Ex3
