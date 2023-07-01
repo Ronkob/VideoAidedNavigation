@@ -4,7 +4,7 @@ Video Navigation.
 Submitted By: Dor Messica, Ron Kobrowski.
 
 ## Introduction
-In this project we will implement a SLAM algorithm, when SLAM stands for "Simultaneous, Localization and Mapping".
+In this projec t we will implement a SLAM algorithm, when SLAM stands for "Simultaneous, Localization and Mapping".
 This means that we will create a map of the environment, and at the same time we will localize ourselves in the map.
 
 The project will be devided to 7 exercises, where we will gradually develop a largescale project that employs a suite of algorithms to provide local visual odometry and global trajectory estimation. Simply put, we will find the vehicle locations using only its cameras. The system will run on the KITTI stereo dataset and will tackle these challenges using image processing, image understanding and 3D optimization techniques to estimate the vehicle path and the geometric structure of the world.
@@ -58,6 +58,17 @@ In this exercise we prepare for implementing Loop Closure, by extracting relativ
 ## Ex7
 In this exercise, we will recognize that the current location of the vehicle is potentially similar to some past location and initiate a search for the exact relative pose between two frames.
 When we find such connection to a past frame, we’ll use it to add a Loop Closure constraint to the pose graph, thus greatly reducing the drift of the trajectory estimation.
+
+here is one successful loop closure consensus match:
+
+![matches_and_supporters_from_463_to_1221.png](VAN_ex%2Fmedia%2Fmatches_and_supporters_from_463_to_1221.png)
+
+and here is the entire trajectory with all the loop closures:
+you can really see the improvement in the trajectory estimation! 
+![q7_all all trajectories.png](VAN_ex%2Fmedia%2Fq7_all%20all%20trajectories.png)
+
+and only the moving car:
+![q7_loop_closure.gif](VAN_ex%2Fmedia%2Fq7_loop_closure.gif)
 
 
 ## Final Project

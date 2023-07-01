@@ -2,6 +2,7 @@
 import numpy as np
 import matplotlib.path as mpath
 from matplotlib import pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 from VAN_ex.code.DataBase.Track import Track
 from VAN_ex.code.Ex3 import ex3
@@ -145,7 +146,7 @@ def get_rotated_car_marker(alpha):
                           [-0.5, -0.2],  # Left wheel bottom
                           [-0.7, 0],  # Left wheel
                           [-1, 0]  # Back to start
-    ])
+                          ])
     # Convert alpha to radians
     alpha_rad = np.radians(alpha)
 
@@ -202,3 +203,36 @@ def plot_pose_graphs(graph_lst, titles):
     fig.savefig('q7_all all trajectories.png')
     fig.show()
     plt.clf()
+
+
+def make_moving_car_animation(loop_closure_graph):
+    fig, axes = plt.subplots(figsize=(8, 8))
+    color_map = plt.get_cmap('rainbow')  # Use colormap of your choice
+    num_graphs = 2
+    colors = [color_map(i) for i in np.linspace(0, 1, num_graphs)]
+
+    ground_truth_keyframes = np.array(ex3.calculate_camera_trajectory(ex3.get_ground_truth_transformations()))
+    fig = plot_ground_truth_trajectory(ground_truth_keyframes, fig, colors[0])
+    curr_rel_cameras = loop_closure_graph.get_opt_cameras()
+    curr_trajectory = projection_utils.get_trajectory_from_gtsam_poses(curr_rel_cameras)
+    fig = plot_camera_trajectory(curr_trajectory, fig, label="Loop Closure Estimation", color=colors[1], draw_car=False)
+
+    legend_element = plt.legend(loc='upper left', fontsize=12)
+    fig.gca().add_artist(legend_element)
+
+    last_car_marker = [None]
+    def update(i):
+        alpha = get_alpha_from_poses(curr_trajectory[i, :], curr_trajectory[i + 1, :])
+        # car_marker = get_rotated_car_marker(alpha)
+        car_marker = get_rotated_svg_marker(alpha=alpha)
+        if last_car_marker[0] is not None:
+            last_car_marker[0][0].remove()
+
+        last_car_marker[0] = axes.plot(curr_trajectory[i, 0], curr_trajectory[i, 2], marker=car_marker,
+                                           color=colors[1], markersize=40, alpha=0.8)
+
+    anim = FuncAnimation(fig, update, frames=np.arange(0, len(curr_trajectory) - 1, 5), interval=100)
+    print("Saving animation...")
+    anim.save('q7_loop_closure.gif', dpi=80, writer='pillow')
+    plt.clf()
+    return anim

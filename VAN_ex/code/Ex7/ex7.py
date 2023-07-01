@@ -158,11 +158,14 @@ def q7_5():
 
     # Plot the pose graph locations along with the ground truth both with and without loop closures.
     # no_loop_closure = Data().get_pose_graph()
-    # with_loop_closure = load_pg('pg_loop_closure.pkl')
-    #
+    with_loop_closure = load_pg('pg_loop_closure.pkl')
+
     # graphs_lst = [no_loop_closure, with_loop_closure]
     # titles = ['Bundle Adjustment', 'Loop Closure']
     # auxilery_plot_utils.plot_pose_graphs(graphs_lst, titles)
+
+    # make cool animation
+    auxilery_plot_utils.make_moving_car_animation(with_loop_closure)
 
 
 @utils.measure_time
