@@ -21,7 +21,7 @@ def plot_ground_truth_trajectory(ground_truth_pos, fig=None, color='blue'):
     # make the title in a beautiful, large font
     ax.set_title('Trajectory of the left camera', fontsize=20, fontweight='bold')
 
-    draw_car_on_trajectory(ground_truth_pos[::10], color=color, ax=ax)
+    # draw_car_on_trajectory(ground_truth_pos[::10], color=color, ax=ax)
 
     # plot the line connecting the ground truth trajectory points
     ax.plot(ground_truth_pos[:, 0], ground_truth_pos[:, 2], color=color, alpha=0.5, linewidth=5, label='ground truth')
@@ -55,9 +55,10 @@ def get_alpha_from_poses(pose1, pose2):
 
 def draw_car_on_trajectory(camera_pos, ax, color):
     # draw the car on the trajectory
-    for i in range(camera_pos.shape[0])[::50]:
+    for i in range(camera_pos.shape[0])[::30]:
         alpha = get_alpha_from_poses(camera_pos[i, :], camera_pos[i + 1, :])
-        car_marker = get_rotated_car_marker(alpha)
+        # car_marker = get_rotated_car_marker(alpha)
+        car_marker = get_rotated_svg_marker(alpha=alpha)
         ax.plot(camera_pos[i, 0], camera_pos[i, 2], marker=car_marker, color=color, markersize=25, alpha=0.8)
 
 
@@ -130,18 +131,20 @@ def plot_scene_3d(result, init_view=None, title="3d scene", marginals=None, scal
 
 def get_rotated_car_marker(alpha):
     # Create a sedan car shape
-    sedan_car = np.array([
-        [-0.4, 0.8],  # Left windshield
-        [0.4, 0.7],  # Right windshield
-        [1, 0.5],  # Top right
-        [1, 0],  # Bottom right
-        [0.7, 0],  # Right wheel
-        [0.5, -0.2],  # Right wheel bottom
-        [0.4, 0],  # Right wheel inner
-        [-0.4, 0],  # Left wheel inner
-        [-0.5, -0.2],  # Left wheel bottom
-        [-0.7, 0],  # Left wheel
-        [-1, 0]  # Back to start
+    sedan_car = np.array([[-0.4, 0.8],  # Left windshield
+                          [-1, 0],  # Bottom left
+                          [-1, 0.5],  # Top left
+                          [-0.4, 0.8],  # Left windshield
+                          [0.4, 0.7],  # Right windshield
+                          [1, 0.5],  # Top right
+                          [1, 0],  # Bottom right
+                          [0.7, 0],  # Right wheel
+                          [0.5, -0.2],  # Right wheel bottom
+                          [0.4, 0],  # Right wheel inner
+                          [-0.4, 0],  # Left wheel inner
+                          [-0.5, -0.2],  # Left wheel bottom
+                          [-0.7, 0],  # Left wheel
+                          [-1, 0]  # Back to start
     ])
     # Convert alpha to radians
     alpha_rad = np.radians(alpha)
@@ -158,6 +161,20 @@ def get_rotated_car_marker(alpha):
     return car_marker
 
 
+def get_rotated_svg_marker(path='car.svg', alpha=0):
+    import matplotlib as mpl
+    from svgpathtools import svg2paths
+    from svgpath2mpl import parse_path
+
+    planet_path, attributes = svg2paths(path)
+    planet_marker = parse_path(attributes[0]['d'])
+    planet_marker.vertices -= planet_marker.vertices.mean(axis=0)
+    planet_marker = planet_marker.transformed(mpl.transforms.Affine2D().rotate_deg(180))
+    planet_marker = planet_marker.transformed(mpl.transforms.Affine2D().scale(-1, 1))
+    planet_marker = planet_marker.transformed(mpl.transforms.Affine2D().rotate_deg(alpha))
+    return planet_marker
+
+
 def plot_pose_graphs(graph_lst, titles):
     fig, axes = plt.subplots(figsize=(8, 8))
     color_map = plt.get_cmap('rainbow')  # Use colormap of your choice
@@ -171,10 +188,14 @@ def plot_pose_graphs(graph_lst, titles):
     initial_est = utils.get_initial_estimation(rel_t_arr=rel_arr)[graph_lst[0].keyframes]
     fig = plot_camera_trajectory(camera_pos=initial_est, fig=fig, label="initial estimate", color=colors[1])
 
-    for graph, title, color in zip(graph_lst, titles, colors[2:]):
+    for i, (graph, title, color) in enumerate(zip(graph_lst, titles, colors[2:])):
         curr_rel_cameras = graph.get_opt_cameras()
         curr_trajectory = projection_utils.get_trajectory_from_gtsam_poses(curr_rel_cameras)
-        fig = plot_camera_trajectory(camera_pos=curr_trajectory, fig=fig, label=title, color=color, draw_car=True)
+        if i == len(graph_lst) - 1:
+            draw_car = True
+        else:
+            draw_car = False
+        fig = plot_camera_trajectory(camera_pos=curr_trajectory, fig=fig, label=title, color=color, draw_car=draw_car)
 
     legend_element = plt.legend(loc='upper left', fontsize=12)
     fig.gca().add_artist(legend_element)
