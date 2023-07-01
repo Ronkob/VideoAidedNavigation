@@ -27,7 +27,15 @@ In this exercise we explore a geometric outlier rejection policy and use the ste
 
 ## Ex3
 In this exercise we will move forward in time to the next stereo pair and match the left image to the previous left image and run PnP using RANSAC iterations to estimate the relative motion. We will also use the extra information - we now have two stereo pairs - to reject (almost all of) the remaining outliers.
+
 ![sequential matching example.png](VAN_ex%2Fmedia%2Fsequential%20matching%20example.png)
+
+we can calculate the relative motion between the two frames using PnP and RANSAC iterations, 
+and estimate the transformation between the two frames:
+`ENTER ESTIMATION CALCULATION`
+
+then, we are able to make an initial estimate for the trajectory of the vehicle:
+
 ![initial trajectory](VAN_ex/media/trajectory.png)
 
 ## Ex4
@@ -52,8 +60,10 @@ reprojection constraints (only pose-pose constraints) and only a subset of the f
 In this exercise we prepare for implementing Loop Closure, by extracting relative pose constraint from Bundle optimization and building the Pose Graph.
 
 ![image](https://github.com/Dor890/SLAM/assets/64433958/0814ccbd-9fdf-4a93-a69c-a0271450f175)
-![image](https://github.com/Dor890/SLAM/assets/64433958/9e3d087d-bd97-4f74-81e6-b774ff231959)
-![image](https://github.com/Dor890/SLAM/assets/64433958/ca4b76d9-b1fa-4d38-b02c-2e01350ab9c1)
+
+here is a visualization of the poses and covariances of the poses in the scene:
+
+![q6_2 optimized poses with cov scene from above.png](VAN_ex%2Fmedia%2Fq6_2%20optimized%20poses%20with%20cov%20scene%20from%20above.png)
 
 ## Ex7
 In this exercise, we will recognize that the current location of the vehicle is potentially similar to some past location and initiate a search for the exact relative pose between two frames.
@@ -68,6 +78,7 @@ you can really see the improvement in the trajectory estimation!
 ![q7_all all trajectories.png](VAN_ex%2Fmedia%2Fq7_all%20all%20trajectories.png)
 
 and only the moving car:
+
 ![q7_loop_closure.gif](VAN_ex%2Fmedia%2Fq7_loop_closure.gif)
 
 
