@@ -15,9 +15,14 @@ In this project, we will make an extensive use of opencv (mainly for features ex
 ## Ex1
 In this exercise we will develop the feature-tracking system, which is a key-component in any vision-based navigation system. Basically, the feature-tracking system receives as input a series of images (or, in our case, stereo pairs) and outputs trajectories of points in the image, where each track represents the different pixel locations of a certain object in the scene.
 
-![image](https://github.com/Dor890/SLAM/assets/64433958/482a9f49-4aff-4471-8937-a9b87196c125)
+here are the basic features as we extracted them from the first frame:
+![ex1keypoints.png](VAN_ex%2Fmedia%2Fex1keypoints.png)
 
-![image](https://github.com/Dor890/SLAM/assets/64433958/b727ce39-ccf9-4537-b700-71adfae0ec94)
+and here are the matches between the first frame and the second frame:
+![ex1matches_no_significance.png](VAN_ex%2Fmedia%2Fex1matches_no_significance.png)
+
+and here are the matches after we applied a significance test:
+![ex1matches_significance_test.png](VAN_ex%2Fmedia%2Fex1matches_significance_test.png)
 
 ## Ex2
 In this exercise we explore a geometric outlier rejection policy and use the stereo matches for triangulation to produce a 3D point cloud.
@@ -29,9 +34,11 @@ In this exercise we will move forward in time to the next stereo pair and match 
 
 ![sequential matching example.png](VAN_ex%2Fmedia%2Fsequential%20matching%20example.png)
 
+
 we can calculate the relative motion between the two frames using PnP and RANSAC iterations, 
 and estimate the transformation between the two frames:
 `ENTER ESTIMATION CALCULATION`
+![ex3_rel_camera_pos.png](VAN_ex%2Fmedia%2Fex3_rel_camera_pos.png)
 
 then, we are able to make an initial estimate for the trajectory of the vehicle:
 
@@ -57,8 +64,6 @@ These relative poses can be used as constraints for a factor graph optimization 
 It consists of the poses of some of the frames (keyframes) and the relative nonlinear pose constraints between them. Since it contains no
 reprojection constraints (only pose-pose constraints) and only a subset of the frame poses it is a very concise representation of the entire trajectory.
 In this exercise we prepare for implementing Loop Closure, by extracting relative pose constraint from Bundle optimization and building the Pose Graph.
-
-![image](https://github.com/Dor890/SLAM/assets/64433958/0814ccbd-9fdf-4a93-a69c-a0271450f175)
 
 here is a visualization of the poses and covariances of the poses in the scene:
 
