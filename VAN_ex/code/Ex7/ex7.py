@@ -136,36 +136,81 @@ def q7_5():
     """
     Display plots.
     """
+    pose_graph = Data().get_pose_graph()
+    keyframes = pose_graph.keyframes
+    with_loop_closure = load_pg('pg_loop_closure.pkl')
+    # print(key_frames)
 
     # How many successful loop closures were detected?
-    loops_array = np.load('loops_arr.npy', allow_pickle=True)
-    print(f'Number of successful loop closures: {len(loops_array)}')
-    print(loops_array)
+    # loops_array = np.load('loops_arr.npy', allow_pickle=True)
+    # print(f'Number of successful loop closures: {len(loops_array)}')
+    # print(loops_array)
 
     # Plot the match results of a single successful consensus match of your choice.
     # (For the left images, inliers and outliers in different colors)
-    ex3.track_movement_successive([463, 1221], plot=True)
+    # ex3.track_movement_successive([463, 1221], plot=True)
 
     # Choose 5 versions of the pose graph along the process and plot them (including location covariance).
-    #     TODO: implement
+    LOOP_FRAMES = [1213, 1330, 1426, 2399, 2526]
+    LOOP_KF = [keyframes.index(i) for i in LOOP_FRAMES]
+    for i in tqdm(keyframes):
+        candidates = q7_1(pose_graph, i)
+        fitters = q7_2(candidates, i, keyframes)
+        relatives = q7_3(fitters, i, pose_graph)
+        q7_4(relatives, pose_graph, i)
+        if i in LOOP_KF:
+            marginals = pose_graph.get_marginals()
+            plot_scene_from_above(pose_graph.result, marginals=marginals, question='q7 five versions {}'.format(i))
 
     # Plot a graph of the absolute location error for the whole pose graph both with and without loop closures.
-    #     TODO: implement
+    gtsam_init_estimates = pose_graph.initial_estimates
+    gtsam_after_loop_estimates = with_loop_closure.result
+    ground_truth_keyframes = np.array(ex3.calculate_camera_trajectory(ex3.get_ground_truth_transformations()))
+    init_estimates, after_loop_estimates = [], []
+    for i in range(len(gtsam_init_estimates)):
+        init_estimates.append(gtsam_init_estimates[i].translation())
+        after_loop_estimates.append(gtsam_after_loop_estimates[i].translation())
+
+    diff_before = abs(gtsam_init_estimates - ground_truth_keyframes)
+    diff_after = abs(gtsam_after_loop_estimates - ground_truth_keyframes)
+
+    fig = plt.figure()
+    plt.title("Pose Graph Abs location error with and without loop closures")
+    plt.plot(range(len(diff_after)), diff_after, label='With Loop')
+    plt.plot(range(len(diff_before)), diff_before, label='Without Loop')
+    # plt.ylim(0, 70)
+    plt.ylabel("Absolute Location Error")
+    plt.xlabel("Keyframe")
+    plt.legend()
+    fig.savefig(f"Pose Graph Abs location error with and without loop closures.png")
 
     # Plot a graph of the location uncertainty size for the whole pose graph both with and without loop closures.
-    # (What measure of uncertainty size did you choose?)
-    #     TODO: implement
+    init_covs = [pose_graph.get_marginals().marginalCovariance(gtsam.symbol('c', i)) for i in range(keyframes-1)]
+    weight_init_covs = [utils.weight_func(cov) for cov in init_covs]
+
+    after_loop_covs = [with_loop_closure.get_marginals().marginalCovariance(gtsam.symbol('c', i)) for i in range(keyframes-1)]
+    weight_loop_covs = [utils.weight_func(cov) for cov in after_loop_covs]
+
+    fig = plt.figure()
+    plt.title("Location uncertainty size with and without Loop Closure")
+    plt.plot(range(len(weight_init_covs)), weight_init_covs, label="With Loop")
+    plt.plot(range(len(weight_loop_covs)), weight_loop_covs, label="Without Loop")
+    plt.ylabel("Covariance Sqrt Determinant")
+    plt.xlabel("Keyframe")
+    plt.yscale('log')
+    plt.legend()
+    fig.savefig("Location uncertainty size with and without Loop Closure")
 
     # Plot the pose graph locations along with the ground truth both with and without loop closures.
     # no_loop_closure = Data().get_pose_graph()
-    with_loop_closure = load_pg('pg_loop_closure.pkl')
-
+    # with_loop_closure = load_pg('pg_loop_closure.pkl')
+    #
     # graphs_lst = [no_loop_closure, with_loop_closure]
     # titles = ['Bundle Adjustment', 'Loop Closure']
     # auxilery_plot_utils.plot_pose_graphs(graphs_lst, titles)
 
     # make cool animation
-    auxilery_plot_utils.make_moving_car_animation(with_loop_closure)
+    # auxilery_plot_utils.make_moving_car_animation(with_loop_closure)
 
 
 @utils.measure_time
@@ -215,6 +260,7 @@ def run_ex7():
 
 def main():
     # run_ex7()
+    # Create plots
     q7_5()
 
 
