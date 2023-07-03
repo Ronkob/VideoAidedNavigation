@@ -153,14 +153,14 @@ def q7_5():
     # Choose 5 versions of the pose graph along the process and plot them (including location covariance).
     LOOP_FRAMES = [1213, 1330, 1426, 2399, 2526]
     LOOP_KF = [keyframes.index(i) for i in LOOP_FRAMES]
-    for i in tqdm(keyframes):
+    for i in tqdm(range(1, len(keyframes))):
         candidates = q7_1(pose_graph, i)
         fitters = q7_2(candidates, i, keyframes)
         relatives = q7_3(fitters, i, pose_graph)
         q7_4(relatives, pose_graph, i)
         if i in LOOP_KF:
             marginals = pose_graph.get_marginals()
-            plot_scene_from_above(pose_graph.result, marginals=marginals, question='q7 five versions {}'.format(i))
+            plot_scene_from_above(pose_graph.result, marginals=marginals, question='q7 five versions {}'.format(keyframes[i]))
 
     # Plot a graph of the absolute location error for the whole pose graph both with and without loop closures.
     gtsam_init_estimates = pose_graph.initial_estimates

@@ -221,6 +221,7 @@ def make_moving_car_animation(loop_closure_graph):
     fig.gca().add_artist(legend_element)
 
     last_car_marker = [None]
+
     def update(i):
         alpha = get_alpha_from_poses(curr_trajectory[i, :], curr_trajectory[i + 1, :])
         # car_marker = get_rotated_car_marker(alpha)
@@ -228,8 +229,8 @@ def make_moving_car_animation(loop_closure_graph):
         if last_car_marker[0] is not None:
             last_car_marker[0][0].remove()
 
-        last_car_marker[0] = axes.plot(curr_trajectory[i, 0], curr_trajectory[i, 2], marker=car_marker,
-                                           color=colors[1], markersize=40, alpha=0.8)
+        last_car_marker[0] = axes.plot(curr_trajectory[i, 0], curr_trajectory[i, 2], marker=car_marker, color=colors[1],
+                                       markersize=40, alpha=0.8)
 
     anim = FuncAnimation(fig, update, frames=np.arange(0, len(curr_trajectory) - 1, 5), interval=100)
     print("Saving animation...")
