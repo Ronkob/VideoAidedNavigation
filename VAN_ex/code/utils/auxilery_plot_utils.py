@@ -128,6 +128,7 @@ def plot_scene_3d(result, init_view=None, title="3d scene", marginals=None, scal
     ax.view_init(**init_view)
     fig.suptitle(title, fontsize=16, fontweight='bold')
     fig.savefig(question + ' ' + title + '.png')  # fig.show()  # plt.clf()
+    plt.close(fig)
 
 
 def get_rotated_car_marker(alpha):

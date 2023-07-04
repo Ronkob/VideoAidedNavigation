@@ -25,6 +25,9 @@ MAHAL_THRESH = 50
 MAX_CANDIDATES = 3
 INLIERS_PREC_THRESH = 75
 
+PG_LOOP_PATH = 'pg_loop_closure.pkl'
+LOOPS_ARR_PATH = 'loops_arr.npy'
+
 loops_arr = []
 
 
@@ -134,15 +137,13 @@ def q7_4(relatives, pose_graph, n_idx):
 @utils.measure_time
 def q7_5():
     """
-    Display plots.
+    Create plots. Run each plot separately.
     """
-    pose_graph = Data().get_pose_graph()
-    keyframes = pose_graph.keyframes
-    with_loop_closure = load_pg('pg_loop_closure.pkl')
-    # print(key_frames)
+    no_loop_closure = Data().get_pose_graph()
+    keyframes = no_loop_closure.keyframes
 
     # How many successful loop closures were detected?
-    # loops_array = np.load('loops_arr.npy', allow_pickle=True)
+    # loops_array = np.load(LOOPS_ARR_PATH, allow_pickle=True)
     # print(f'Number of successful loop closures: {len(loops_array)}')
     # print(loops_array)
 
@@ -151,60 +152,66 @@ def q7_5():
     # ex3.track_movement_successive([463, 1221], plot=True)
 
     # Choose 5 versions of the pose graph along the process and plot them (including location covariance).
-    LOOP_FRAMES = [1213, 1330, 1426, 2399, 2526]
+    LOOP_FRAMES = [1230, 1250, 1270, 1292, 1310]
     LOOP_KF = [keyframes.index(i) for i in LOOP_FRAMES]
     for i in tqdm(range(1, len(keyframes))):
-        candidates = q7_1(pose_graph, i)
+        candidates = q7_1(no_loop_closure, i)
         fitters = q7_2(candidates, i, keyframes)
-        relatives = q7_3(fitters, i, pose_graph)
-        q7_4(relatives, pose_graph, i)
+        relatives = q7_3(fitters, i, no_loop_closure)
+        q7_4(relatives, no_loop_closure, i)
         if i in LOOP_KF:
-            marginals = pose_graph.get_marginals()
-            plot_scene_from_above(pose_graph.result, marginals=marginals, question='q7 five versions {}'.format(keyframes[i]))
+            marginals = no_loop_closure.get_marginals()
+            plot_scene_from_above(no_loop_closure.result, marginals=marginals, question='q7 five versions {}'.format(keyframes[i]))
 
     # Plot a graph of the absolute location error for the whole pose graph both with and without loop closures.
-    gtsam_init_estimates = pose_graph.initial_estimates
-    gtsam_after_loop_estimates = with_loop_closure.result
-    ground_truth_keyframes = np.array(ex3.calculate_camera_trajectory(ex3.get_ground_truth_transformations()))
-    init_estimates, after_loop_estimates = [], []
-    for i in range(len(gtsam_init_estimates)):
-        init_estimates.append(gtsam_init_estimates[i].translation())
-        after_loop_estimates.append(gtsam_after_loop_estimates[i].translation())
+    # print('calculate ground truth...')
+    # ground_truth_keyframes = np.array(ex3.calculate_camera_trajectory(ex3.get_ground_truth_transformations()))[keyframes]
+    #
+    # print('calculate estimates...')
+    # init_rel_cameras = no_loop_closure.get_opt_cameras()
+    # init_trajectory = projection_utils.get_trajectory_from_gtsam_poses(init_rel_cameras)
+    # diff_before = np.sum(np.abs(init_trajectory - ground_truth_keyframes), axis=1)
 
-    diff_before = abs(gtsam_init_estimates - ground_truth_keyframes)
-    diff_after = abs(gtsam_after_loop_estimates - ground_truth_keyframes)
-
-    fig = plt.figure()
-    plt.title("Pose Graph Abs location error with and without loop closures")
-    plt.plot(range(len(diff_after)), diff_after, label='With Loop')
-    plt.plot(range(len(diff_before)), diff_before, label='Without Loop')
-    # plt.ylim(0, 70)
-    plt.ylabel("Absolute Location Error")
-    plt.xlabel("Keyframe")
-    plt.legend()
-    fig.savefig(f"Pose Graph Abs location error with and without loop closures.png")
+    # fig = plt.figure()
+    # plt.title('Pose Graph absolute location error with and without loop closures')
+    # # plt.plot(range(len(diff_after)), diff_after, label='With Loop')
+    # plt.plot(range(len(diff_before)), diff_before, label='Without Loop', color='orange')
+    # del no_loop_closure
+    #
+    # print('getting pose graph after loop closure...')
+    # with_loop_closure = load_pg(PG_LOOP_PATH)
+    # loop_rel_cameras = with_loop_closure.get_opt_cameras()
+    # loop_trajectory = projection_utils.get_trajectory_from_gtsam_poses(loop_rel_cameras)
+    # diff_after = np.sum(np.abs(loop_trajectory - ground_truth_keyframes), axis=1)
+    # plt.plot(range(len(diff_after)), diff_after, label='With Loop')
+    #
+    # plt.ylabel('Absolute Location Error')
+    # plt.xlabel('Keyframe')
+    # plt.legend()
+    # fig.savefig('PG Abs location error.png')
 
     # Plot a graph of the location uncertainty size for the whole pose graph both with and without loop closures.
-    init_covs = [pose_graph.get_marginals().marginalCovariance(gtsam.symbol('c', i)) for i in range(keyframes-1)]
-    weight_init_covs = [utils.weight_func(cov) for cov in init_covs]
-
-    after_loop_covs = [with_loop_closure.get_marginals().marginalCovariance(gtsam.symbol('c', i)) for i in range(keyframes-1)]
-    weight_loop_covs = [utils.weight_func(cov) for cov in after_loop_covs]
-
-    fig = plt.figure()
-    plt.title("Location uncertainty size with and without Loop Closure")
-    plt.plot(range(len(weight_init_covs)), weight_init_covs, label="With Loop")
-    plt.plot(range(len(weight_loop_covs)), weight_loop_covs, label="Without Loop")
-    plt.ylabel("Covariance Sqrt Determinant")
-    plt.xlabel("Keyframe")
-    plt.yscale('log')
-    plt.legend()
-    fig.savefig("Location uncertainty size with and without Loop Closure")
-
-    # Plot the pose graph locations along with the ground truth both with and without loop closures.
-    # no_loop_closure = Data().get_pose_graph()
-    # with_loop_closure = load_pg('pg_loop_closure.pkl')
+    # print('calculate covariances...')
+    # init_covs = [no_loop_closure.get_marginals().marginalCovariance(gtsam.symbol('c', i)) for i in range(len(keyframes))]
+    # weight_init_covs = [utils.weight_func(cov) for cov in init_covs]
+    # del no_loop_closure
     #
+    # print('getting pose graph after loop closure...')
+    # with_loop_closure = load_pg(PG_LOOP_PATH)
+    # after_loop_covs = [with_loop_closure.get_marginals().marginalCovariance(gtsam.symbol('c', i)) for i in range(len(keyframes))]
+    # weight_loop_covs = [utils.weight_func(cov) for cov in after_loop_covs]
+    #
+    # fig = plt.figure()
+    # plt.title('Location uncertainty size with and without Loop Closure')
+    # plt.plot(range(len(weight_init_covs)), weight_init_covs, label='Without Loop', color='orange')
+    # plt.plot(range(len(weight_loop_covs)), weight_loop_covs, label='With Loop')
+    # plt.ylabel('Covariance Sqrt Determinant')
+    # plt.xlabel('Keyframe')
+    # plt.yscale('log')
+    # plt.legend()
+    # fig.savefig('Location uncertainty size.png')
+
+    # Plot the pose graph locations along with the ground truth both with and without loop closures.    #
     # graphs_lst = [no_loop_closure, with_loop_closure]
     # titles = ['Bundle Adjustment', 'Loop Closure']
     # auxilery_plot_utils.plot_pose_graphs(graphs_lst, titles)
@@ -249,10 +256,10 @@ def run_ex7():
             q7_4(relatives, pose_graph, i)
 
     # save the loop-closure pose graph to file
-    save_pg(pose_graph, 'pg_loop_closure.pkl')
+    save_pg(pose_graph, PG_LOOP_PATH)
 
     # save loops_arr to file
-    np.save('loops_arr.npy', np.array(loops_arr))
+    np.save(LOOPS_ARR_PATH, np.array(loops_arr))
 
     print(f'pose graph has {len(pose_graph.keyframes)} keyframes and {len(pose_graph.tracks_db.tracks)} tracks')
     print('We found {} loop closures on frames'.format(len(loops_arr), loops_arr))
