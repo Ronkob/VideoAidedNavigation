@@ -536,3 +536,9 @@ def calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov):
 
 def weight_func(cov):
     return np.sqrt(np.linalg.det(cov))
+
+
+def calculate_euclidian_dist(abs_cameras, ground_truth_cameras):
+    pts_sub = abs_cameras - ground_truth_cameras
+    sum_of_squared_diffs = np.linalg.norm(pts_sub, axis=1)
+    return np.sqrt(sum_of_squared_diffs)

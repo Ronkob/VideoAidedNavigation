@@ -152,43 +152,39 @@ def q7_5():
     # ex3.track_movement_successive([463, 1221], plot=True)
 
     # Choose 5 versions of the pose graph along the process and plot them (including location covariance).
-    LOOP_FRAMES = [1230, 1250, 1270, 1292, 1310]
-    LOOP_KF = [keyframes.index(i) for i in LOOP_FRAMES]
-    for i in tqdm(range(1, len(keyframes))):
-        candidates = q7_1(no_loop_closure, i)
-        fitters = q7_2(candidates, i, keyframes)
-        relatives = q7_3(fitters, i, no_loop_closure)
-        q7_4(relatives, no_loop_closure, i)
-        if i in LOOP_KF:
-            marginals = no_loop_closure.get_marginals()
-            plot_scene_from_above(no_loop_closure.result, marginals=marginals, question='q7 five versions {}'.format(keyframes[i]))
+    # LOOP_FRAMES = [1230, 1250, 1270, 1292, 1310]
+    # LOOP_KF = [keyframes.index(i) for i in LOOP_FRAMES]
+    # for i in tqdm(range(1, len(keyframes))):
+    #     candidates = q7_1(no_loop_closure, i)
+    #     fitters = q7_2(candidates, i, keyframes)
+    #     relatives = q7_3(fitters, i, no_loop_closure)
+    #     q7_4(relatives, no_loop_closure, i)
+    #     if i in LOOP_KF:
+    #         marginals = no_loop_closure.get_marginals()
+    #         plot_scene_from_above(no_loop_closure.result, marginals=marginals, question='q7 five versions {}'.format(keyframes[i]))
 
     # Plot a graph of the absolute location error for the whole pose graph both with and without loop closures.
-    # print('calculate ground truth...')
-    # ground_truth_keyframes = np.array(ex3.calculate_camera_trajectory(ex3.get_ground_truth_transformations()))[keyframes]
-    #
-    # print('calculate estimates...')
-    # init_rel_cameras = no_loop_closure.get_opt_cameras()
-    # init_trajectory = projection_utils.get_trajectory_from_gtsam_poses(init_rel_cameras)
-    # diff_before = np.sum(np.abs(init_trajectory - ground_truth_keyframes), axis=1)
+    ground_truth_keyframes = np.array(ex3.calculate_camera_trajectory(ex3.get_ground_truth_transformations()))[keyframes]
+    init_rel_cameras = no_loop_closure.get_opt_cameras()
+    init_trajectory = projection_utils.get_trajectory_from_gtsam_poses(init_rel_cameras)
+    diff_before = utils.calculate_euclidian_dist(init_trajectory, ground_truth_keyframes)
 
-    # fig = plt.figure()
-    # plt.title('Pose Graph absolute location error with and without loop closures')
-    # # plt.plot(range(len(diff_after)), diff_after, label='With Loop')
-    # plt.plot(range(len(diff_before)), diff_before, label='Without Loop', color='orange')
-    # del no_loop_closure
-    #
-    # print('getting pose graph after loop closure...')
-    # with_loop_closure = load_pg(PG_LOOP_PATH)
-    # loop_rel_cameras = with_loop_closure.get_opt_cameras()
-    # loop_trajectory = projection_utils.get_trajectory_from_gtsam_poses(loop_rel_cameras)
-    # diff_after = np.sum(np.abs(loop_trajectory - ground_truth_keyframes), axis=1)
-    # plt.plot(range(len(diff_after)), diff_after, label='With Loop')
-    #
-    # plt.ylabel('Absolute Location Error')
-    # plt.xlabel('Keyframe')
-    # plt.legend()
-    # fig.savefig('PG Abs location error.png')
+    fig = plt.figure()
+    plt.title('Pose Graph absolute location error with and without loop closures')
+    plt.plot(range(len(diff_before)), diff_before, label='Without Loop', color='orange')
+    del no_loop_closure
+
+    print('getting pose graph after loop closure...')
+    with_loop_closure = load_pg(PG_LOOP_PATH)
+    loop_rel_cameras = with_loop_closure.get_opt_cameras()
+    loop_trajectory = projection_utils.get_trajectory_from_gtsam_poses(loop_rel_cameras)
+    diff_after = utils.calculate_euclidian_dist(loop_trajectory, ground_truth_keyframes)
+    plt.plot(range(len(diff_after)), diff_after, label='With Loop')
+
+    plt.ylabel('Absolute Location Error')
+    plt.xlabel('Keyframe')
+    plt.legend()
+    fig.savefig('PG Abs location error.png')
 
     # Plot a graph of the location uncertainty size for the whole pose graph both with and without loop closures.
     # print('calculate covariances...')
