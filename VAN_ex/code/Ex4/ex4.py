@@ -2,7 +2,7 @@ import os
 import numpy as np
 from matplotlib import animation
 
-from VAN_ex.code.DataBase.TracksDB import TracksDB
+from VAN_ex.code.DataBase.TracksDB import TracksDB, Track
 from VAN_ex.code.utils import utils as utils
 import matplotlib.pyplot as plt
 import VAN_ex.code.Ex1.ex1 as ex1_utils
@@ -130,12 +130,14 @@ def plot_connectivity_graph(tracks_db):
         num_tracks = len(set(curr_tracks).intersection(next_tracks))
         outgoing_tracks.append(num_tracks)
 
+    fig = plt.figure(figsize=(13, 5))
     plt.title('Connectivity Graph')
     plt.xlabel('Frame')
     plt.ylabel('Outgoing tracks')
     plt.axhline(y=np.array(outgoing_tracks).mean(), color='green', linestyle='--')
     plt.plot(frames, outgoing_tracks)
-    plt.show()
+    plt.savefig('connectivity_graph.png')
+    plt.close(fig)
 
 
 # q4.6
@@ -147,11 +149,23 @@ def plot_track_length_histogram(tracks_db):
     x_axis = [i for i in range(max(track_lengths))]
     num_tracks = [track_lengths.count(i) for i in x_axis]
 
+    fig = plt.figure(figsize=(13, 5))
     plt.title('Track length histogram')
     plt.xlabel('Track length')
     plt.ylabel('Track #')
+    plt.plot(x_axis, num_tracks, marker='x')
+    plt.savefig('track_length_histogram.png')
+    plt.close(fig)
+
+    fig = plt.figure(figsize=(13, 5))
+    plt.title('Track length histogram')
+    plt.xlabel('Track length')
+    plt.ylabel('Track #')
+    plt.yscale('log')
     plt.plot(x_axis, num_tracks)
-    plt.show()
+    plt.savefig('track_length_histogram2.png')
+    plt.close(fig)
+
 
 
 def read_gt_cam_mat():
@@ -217,11 +231,13 @@ def plot_reprojection_error(tracks_db):
     total_proj_dist = (left_proj_dist + right_proj_dist) / 2
 
     # Present a graph of the reprojection error over the track’s images.
+    fig = plt.figure(figsize=(13, 5))
     plt.title("Reprojection error over track's images")
     plt.ylabel('Error')
     plt.xlabel('Frames')
     plt.scatter(range(min(track.frame_ids), max(track.frame_ids) + 1), total_proj_dist)
-    plt.show()
+    plt.savefig('reprojection_error.png')
+    plt.close(fig)
 
 
 # q4.5
@@ -229,29 +245,48 @@ def plot_inliers_per_frame(inliers_precent, frames):
     """
     Present a graph of the percentage of inliers per frame.
     """
-    plt.title('Inliers per frame')
+    fig = plt.figure(figsize=(13, 5))
+    plt.title('Inliers percentage per frame')
     plt.xlabel('Frame')
     plt.ylabel('Inliers')
     plt.plot(frames, inliers_precent)
     plt.axhline(y=np.array(inliers_precent).mean(), color='green', linestyle='--')
-    plt.show()
+    plt.savefig('inliers_percentage_per_frame.png')
+    plt.close(fig)
+
+
+def plot_matches_per_frame(tracks_db):
+    """
+    Present a graph of the number of matches per frame.
+    """
+    fig = plt.figure(figsize=(13, 5))
+    plt.title('Matches per frame')
+    plt.xlabel('Frame')
+    plt.ylabel('Matches')
+    frames = [i for i in range(len(tracks_db.frame_ids))]
+    matches = [len(tracks_db.get_track_ids(i)) for i in frames]
+    plt.plot(frames, matches)
+    plt.savefig('matches_per_frame.png')
+    plt.close(fig)
 
 
 @utils.measure_time
 def run_sequence(start_frame, end_frame):
     db = TracksDB()
+    inliers_precent_lst = []
     for idx in range(start_frame, end_frame):
         left_ext_mat, inliers, inliers_precent = ex3_utils.track_movement_successive([idx, idx + 1])
+        inliers_precent_lst.append(inliers_precent)
         if left_ext_mat is not None:
             left0_kp, right0_kp, left1_kp, right1_kp = inliers
             db.extend_tracks(idx, (left0_kp, right0_kp), (left1_kp, right1_kp))
         else:
             print("something went wrong, no left_ext_mat")
         print(" -- Step {} -- ".format(idx))
-    # frames = [i for i in range(start_frame, end_frame)]
-    # plot_inliers_per_frame(inliers_precent_lst, frames)  # q4.5
+    frames = [i for i in range(start_frame, end_frame)]
+    plot_inliers_per_frame(inliers_precent_lst, frames)  # q4.5
     # db.remove_short_tracks(short=2)
-    db.serialize(DB_PATH)
+    # db.serialize(DB_PATH)
     return db
 
 
@@ -261,27 +296,32 @@ def run_ex4():
     """
     np.random.seed(7)
     tracks_db = None
-    tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
+    # tracks_db = run_sequence(START_FRAME, MOVIE_LENGTH)  # Build the tracks database
     if tracks_db is None:
+        print('Deserializing DB...')
         tracks_db = TracksDB.deserialize(DB_PATH)
+        print('Finished deserializing DB')
 
     # # q4.2
-    tracks_db.get_statistics()
+    # tracks_db.get_statistics()
     #
     # # q4.3
-    track = get_rand_track(10, tracks_db)
-    plot_random_track(track)
+    # track = get_rand_track(10, tracks_db)
+    # plot_random_track(track)
     #
     # # q4.4
-    plot_connectivity_graph(tracks_db)
+    # plot_connectivity_graph(tracks_db)
     #
-    # #q4.6
+    # # q4.6
     plot_track_length_histogram(tracks_db)
     #
     # # q4.7
-    plot_reprojection_error(tracks_db)
+    # plot_reprojection_error(tracks_db)
+    #
+    # create_gif(START_FRAME, END_FRAME, tracks_db)
 
-    create_gif(START_FRAME, END_FRAME, tracks_db)
+    # Extras
+    plot_matches_per_frame(tracks_db)
 
 
 def main():
