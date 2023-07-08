@@ -509,6 +509,9 @@ def get_rand_track(track_len, tracks, seed=0):
 
 
 def get_initial_estimation(rel_t_arr):
+    """
+    Calculate the initial estimation of the camera trajectory.
+    """
     cam_pos = calculate_camera_trajectory(rel_t_arr)
     return cam_pos
 
@@ -535,10 +538,54 @@ def calc_mahalanobis_dist(cn_pose, ci_pose, rel_cov):
 
 
 def weight_func(cov):
+    """
+    Calculates the weight of a given covariance matrix.
+    """
     return np.sqrt(np.linalg.det(cov))
 
 
 def calculate_euclidian_dist(abs_cameras, ground_truth_cameras):
+    """
+    Calculates the euclidian distance between the absolute camera positions
+    and the ground truth camera positions
+    """
     pts_sub = abs_cameras - ground_truth_cameras
     sum_of_squared_diffs = np.linalg.norm(pts_sub, axis=1)
-    return np.sqrt(sum_of_squared_diffs)
+    return sum_of_squared_diffs
+
+
+def rotation_matrix_to_euler_angles(R):
+    """
+    Calculates rotation matrix to euler angles
+    The result is the same as MATLAB except the order
+    of the euler angles (x and z are swapped).
+    """
+    # assert (is_rotation_matrix(R))
+    sy = np.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
+
+    singular = sy < 1e-6
+
+    if not singular:
+        x = np.arctan2(R[2, 1], R[2, 2])
+        y = np.arctan2(-R[2, 0], sy)
+        z = np.arctan2(R[1, 0], R[0, 0])
+    else:
+        x = np.arctan2(-R[1, 2], R[1, 1])
+        y = np.arctan2(-R[2, 0], sy)
+        z = 0
+
+    return np.array([x, y, z])
+
+
+def calculate_camera_angles(relative_T_arr):
+    """
+    Calculate the camera angles according to the relative position of
+    each camera.
+    """
+    angles = []
+    for T in relative_T_arr:
+        R = T[:, :3]
+        angles.append(np.array([np.arctan2(R[2, 1], R[2, 2]),
+                                np.arctan2(-R[2, 0], np.sqrt(R[2, 1] ** 2 + R[2, 2] ** 2)),
+                                np.arctan2(R[1, 0], R[0, 0])]))
+    return np.array(angles)
