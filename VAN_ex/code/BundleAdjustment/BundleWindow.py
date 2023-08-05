@@ -174,7 +174,7 @@ class Bundle:
             return cameras_poses
 
         elif obj == 'camera_p3d':
-            cam_pose = self.initial_estimates.atPose3(gtsam.symbol('c', self.frames_idxs)).inverse()
+            cam_pose = self.initial_estimates.atPose3(gtsam.symbol('c', self.frames_idxs[-1])) # -1 is the last frame
             return cam_pose
         else:
             raise Exception('Invalid object name')

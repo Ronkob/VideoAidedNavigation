@@ -1,5 +1,7 @@
 import math
 import os
+import statistics
+
 import gtsam
 import numpy as np
 from tqdm import tqdm
@@ -13,6 +15,7 @@ from VAN_ex.code.DataBase.Track import Track
 from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph, load_pg
 from VAN_ex.code.PreCalcData.PreCalced import Data
 from VAN_ex.code.utils import utils, projection_utils
+from VAN_ex.code.Ex5 import ex5 as ex5_utils
 
 import VAN_ex.code.Ex3.ex3 as ex3_utils
 
@@ -407,8 +410,6 @@ def rel_bundle_est_error():
         fig.savefig('Relative BA pose estimation on sequence length {}.png'.format(length))
         plt.close(fig)
 
-    # TODO - Add angle error graph + Average
-
 
 """ Bundle Adjustment Analysis Plots """
 
@@ -506,23 +507,140 @@ def uncertainty_vs_kf():
 """ Factor Optimization Analysis Plots"""
 
 
-def factor_error_pnp():
+def simple_mean_factor_error_ba():
     """
-    Median (or any other meaningful statistic) factor error of the different track links as a
-    function of distance from the reference frame.
+    Optimization error – Keyframes on the 𝑥 axis and mean factor error on the 𝑦 axis. The graph presents a line for
+    the mean factor graph error (total error / #factors) of each bundle window (the window starting at that keyframe)
+    One line for the error before optimization (initial error) and one for the error after optimization (final error).
     """
-    pass
+    ba = Data().get_ba()
+    bundles = ba.bundle_windows
+    opt_factor_errors = []
+    int_factor_errors = []
+    for bundle in bundles:
+        opt_factor_errors.append(bundle.get_factor_error())
+        int_factor_errors.append(bundle.get_factor_error(initial=True))
+
+    fig = plt.figure(figsize=(12, 5))
+    plt.title('Mean Factor Error Before and After Optimization')
+    plt.xlabel('Keyframe [index]')
+    plt.ylabel('Mean Factor Error [m]')
+    plt.plot(range(len(opt_factor_errors)), opt_factor_errors, label='After Optimization')
+    plt.plot(range(len(int_factor_errors)), int_factor_errors, label='Before Optimization')
+    plt.legend()
+    fig.savefig('Factor Error Before and After Optimization.png')
+    plt.close(fig)
 
 
-def factor_error_ba():
-    """
-    Same as above for Bundle Adjustment.
-    """
-    pass
+""" Track length Analysis Plots """
 
 
-""" Misc Functions """
+def choose_tracks_subset(tracks_db):
 
+    # choose a representative subset of the tracks (e.g. 100 tracks with the longest length)
+    # remeber that tracks is a dictionary where the key is the track id and the value is the Track object
+    tracks = tracks_db.tracks
+    tracks = sorted(tracks.values(), key=lambda track: len(track.frame_ids), reverse=True)
+    tracks = tracks[:100]
+    return tracks
+
+
+def projection_error_track_length_pnp(tracks_subset):
+    rel_t_arr = Data().get_rel_T_arr()
+    projection_errors = [[] for _ in range(len(tracks_subset))]
+    for i, track in enumerate(tracks_subset):
+        left_proj, right_proj, initial_estimates, factors = ex5_utils.triangulate_and_project(track, None,
+                                                                                              T_arr=rel_t_arr)
+        left_locations, right_locations = track.get_left_kp(), track.get_right_kp()
+        _, right_proj_dist, left_proj_dist = ex5_utils.calculate_reprojection_error((left_proj, right_proj),
+                                                                                    (left_locations, right_locations))
+        projection_errors[i] = left_proj_dist
+
+    # calculate the median projection error for each distance from the reference
+    # (e.g. for all tracks with length between 0 and 1 meter, calculate the median projection error)
+    # make a nparray, cols: link length, rows: projection error
+    track_lengths = [len(track.frame_ids) for track in tracks_subset]
+    track_lengths = np.array(track_lengths)
+    track_lengths = np.unique(track_lengths)
+    track_lengths = np.sort(track_lengths)
+    link_len_errors = [[] for _ in range(0, max(track_lengths) + 1)]
+    # insert the projection errors to the correct place in the array
+    for track_error in projection_errors:
+        for i, link_len_error in enumerate(track_error):
+            link_len_errors[i].append(link_len_error)
+    # calculate the median for each link length
+    medians = [np.median(lst) for lst in link_len_errors]
+
+    # plot the median projection error as a function of the track length
+    fig = plt.figure(figsize=(12, 5))
+    plt.title('Projection Error vs Track Length in PnP')
+    plt.xlabel('Distance From Reference [#frames]')
+    plt.ylabel('Projection Error [m]')
+    plt.plot(range(0, max(track_lengths) + 1), medians[::-1], label='Median Projection Error')
+    plt.legend()
+    fig.savefig(f'Projection Error vs Track Length in PnP 2.png')
+    plt.close(fig)
+
+
+def projection_error_track_length_ba_v2(tracks_db, tracks_subset, ba):
+    rel_t_arr = Data().get_rel_T_arr()
+    projection_errors = [[] for _ in range(len(tracks_subset))]
+    tracks_subset = set()
+    for bundle_window in ba.bundle_windows:
+        initial_landmarks = bundle_window.get_from_initial('landmarks')
+        initial_poses = bundle_window.get_from_initial('camera_poses')
+
+
+
+def projection_error_track_length_ba(tracks_db, tracks_subset, ba):
+    rel_t_arr = Data().get_rel_T_arr()
+    projection_errors = [[] for _ in range(len(tracks_subset))]
+    tracks_subset = set()
+    for bundle_window in ba.bundle_windows:
+        bundle_frames = bundle_window.frames_idxs
+        tracks_in_frames = set()
+        for frame_id in bundle_frames:
+            tracks_in_frames.update(tracks_db.get_track_ids(frame_id))
+        tracks_in_frames = [tracks_db.get_track(track_id) for track_id in tracks_in_frames]
+        tracks_subset.update(tracks_in_frames)
+
+#     make the track subset a bit smaller
+    tracks_subset = list(tracks_subset)
+    tracks_subset = sorted(tracks_subset, key=lambda track: len(track.frame_ids), reverse=True)[:100]
+    projection_error_track_length_pnp(tracks_subset)
+
+    for i, track in enumerate(tracks_subset):
+        left_proj, right_proj, initial_estimates, factors = ex5_utils.triangulate_and_project(track, None,
+                                                                                              T_arr=rel_t_arr[])
+        left_locations, right_locations = track.get_left_kp(), track.get_right_kp()
+        _, right_proj_dist, left_proj_dist = ex5_utils.calculate_reprojection_error((left_proj, right_proj),
+                                                                                    (left_locations, right_locations))
+        projection_errors[i] = left_proj_dist
+
+    # calculate the median projection error for each distance from the reference
+    # (e.g. for all tracks with length between 0 and 1 meter, calculate the median projection error)
+    # make a nparray, cols: link length, rows: projection error
+    track_lengths = [len(track.frame_ids) for track in tracks_subset]
+    track_lengths = np.array(track_lengths)
+    track_lengths = np.unique(track_lengths)
+    track_lengths = np.sort(track_lengths)
+    link_len_errors = [[] for _ in range(0, max(track_lengths) + 1)]
+    # insert the projection errors to the correct place in the array
+    for track_error in projection_errors:
+        for i, link_len_error in enumerate(track_error):
+            link_len_errors[i].append(link_len_error)
+    # calculate the median for each link length
+    medians = [np.median(lst) for lst in link_len_errors]
+
+    # plot the median projection error as a function of the track length
+    fig = plt.figure(figsize=(12, 5))
+    plt.title('Projection Error vs Track Length in PnP')
+    plt.xlabel('Distance From Reference [#frames]')
+    plt.ylabel('Projection Error [m]')
+    plt.plot(range(0, max(track_lengths) + 1), medians[::-1], label='Median Projection Error')
+    plt.legend()
+    fig.savefig(f'Projection Error vs Track Length in PnP 2.png')
+    plt.close(fig)
 
 def angle_difference(angle1, angle2):
     """
@@ -557,12 +675,11 @@ def make_plots():
     """
     Make plots needed for final project submission.
     """
-    # abs_pose_est_error()
-    # abs_pnp_est_error()
-    # abs_no_loop_closure_pose_est_error(True)
-    # rel_pnp_est_error_v2()
-    rel_ba_est_error_v2()
-
+    tracks_db = Data().get_tracks_db()
+    tracks_subset = choose_tracks_subset(tracks_db)
+    ba = Data().get_ba()
+    projection_error_track_length_ba(tracks_db, tracks_subset, ba)
+    # projection_error_track_length_pnp(tracks_subset)
 
 def main():
     make_plots()

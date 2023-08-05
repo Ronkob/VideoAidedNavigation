@@ -145,7 +145,7 @@ def q5_3(tracks_db, T_arr):
 # ===== Helper functions =====
 
 
-def triangulate_and_project(track, tracks_db):
+def triangulate_and_project(track, tracks_db, T_arr=None):
     """
     For all the frames participating in this track, define a gtsam.StereoCamera
      using the global camera matrices calculated in exercise 3 (PnP).
@@ -156,8 +156,9 @@ def triangulate_and_project(track, tracks_db):
      factor error over the track’s frames.
     """
     # Load and set initial values
-    T_arr = np.load(T_ARR_PATH)
-    T_arr = ex3_utils.calculate_relative_transformations(T_arr)
+    if T_arr is None:
+        T_arr = np.load(T_ARR_PATH)
+        T_arr = ex3_utils.calculate_relative_transformations(T_arr)
     initial_estimates = gtsam.Values()
     K = utils.create_gtsam_K()
 
@@ -173,7 +174,7 @@ def triangulate_and_project(track, tracks_db):
     point_symbol = gtsam.symbol('q', 0)
     base_pose = gtsam.Pose3(fix_ext_mat(last_frame_in_world))
     base_stereo_frame = gtsam.StereoCamera(base_pose, K)
-    xl, xr, y = tracks_db.feature_location(last_frame_id, track.get_track_id())
+    xl, xr, y = track.feature_location(last_frame_id)
     point = gtsam.StereoPoint2(xl, xr, y)
     p3d = base_stereo_frame.backproject(point)
     initial_estimates.insert(point_symbol, p3d)
@@ -193,7 +194,7 @@ def triangulate_and_project(track, tracks_db):
         left_proj.append((projection.uL(), projection.v()))
         right_proj.append((projection.uR(), projection.v()))
 
-        xl, xr, y = tracks_db.feature_location(frame_id, track.get_track_id())
+        xl, xr, y = track.feature_location(frame_id)
         point = gtsam.StereoPoint2(xl, xr, y)
 
         # Create a factor for each frame projection and present a graph of the factor error over the track’s frames.

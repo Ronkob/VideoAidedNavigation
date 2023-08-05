@@ -45,6 +45,7 @@ class Data:
         return self.rel_t_arr
 
     def get_tracks_db(self):
+        print("getting tracks db...")
         if self.tracks_db is None:
             try:
                 self.tracks_db = load_tracks_db(DB_PATH)

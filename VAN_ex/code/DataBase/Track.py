@@ -47,3 +47,12 @@ class Track:
     # get all the right kp of the track as a dictionary
     def get_right_kp(self):
         return {kp: self.kp[kp][1] for kp in self.kp}
+
+    def feature_location(self, frame_id):
+        if frame_id in self.frame_ids:
+            xl = self.kp[frame_id][0][0]
+            xr = self.kp[frame_id][1][0]
+            y = self.kp[frame_id][0][1]
+            return xl, xr, y
+        else:
+            return None
