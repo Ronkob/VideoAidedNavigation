@@ -3,7 +3,8 @@ Video Navigation.
 
 Submitted By: Dor Messica, Ron Kobrowski.
 
-## Introduction
+## Introduct
+ion
 In this projec t we will implement a SLAM algorithm, when SLAM stands for "Simultaneous, Localization and Mapping".
 This means that we will create a map of the environment, and at the same time we will localize ourselves in the map.
 
@@ -11,6 +12,8 @@ The project will be devided to 7 exercises, where we will gradually develop a la
 In this project, we will make an extensive use of opencv (mainly for features extraction and matching) and gtsam (for factor and pose graphs).
 
 ![path_start_gif.gif](VAN_ex%2Fmedia%2Fpath_start_gif.gif)
+
+![optimized final camera view.gif](VAN_ex%2Fmedia%2Foptimized%20final%20camera%20view.gif)
 
 ## Ex1
 In this exercise we will develop the feature-tracking system, which is a key-component in any vision-based navigation system. Basically, the feature-tracking system receives as input a series of images (or, in our case, stereo pairs) and outputs trajectories of points in the image, where each track represents the different pixel locations of a certain object in the scene.
@@ -77,14 +80,15 @@ here is one successful loop closure consensus match:
 
 ![matches_and_supporters_from_463_to_1221.png](VAN_ex%2Fmedia%2Fmatches_and_supporters_from_463_to_1221.png)
 
-and here is the entire trajectory with all the loop closures:
-you can really see the improvement in the trajectory estimation! 
-![q7_all all trajectories.png](VAN_ex%2Fmedia%2Fq7_all%20all%20trajectories.png)
+![inliers_prec_per_loop.png](VAN_ex%2Fcode%2FFinal%20Project%2Finliers_prec_per_loop.png)
 
-and only the moving car:
+That made a huge difference to the location uncertainty:
 
-![q7_loop_closure.gif](VAN_ex%2Fmedia%2Fq7_loop_closure.gif)
+![q7 five versions 681 scene from above.png](VAN_ex%2Fcode%2FEx7%2Fq7%20five%20versions%20681%20scene%20from%20above.png)
 
+A comparison of the location uncertainty before and after loop closure:
+
+![Location uncertainty size.png](VAN_ex%2Fcode%2FFinal%20Project%2FLocation%20uncertainty%20size.png)
 
 ## Final Project
 Over the past exercises we implemented a system that estimates the trajectory of the vehicle from a video captured with an onboard stereo camera.
@@ -92,3 +96,19 @@ The system uses a suite of algorithms in several stages to achieve this goal. In
 Moreover, we will present in our own words the different stages of the system, and summarize the ideas and algorithms as we comprehend them.
 We will present graphs, figures and statistic that demonstrates the performance of the different stages of the system as well as the system as a whole.
 For each graph, we provide an analysis of the information presented in the graph, highlight what the graph shows and explain what aspect (positive or negative) it demonstrates.
+
+some of the results we got:
+
+![Relative BA Total pose estimation error on variable sequence length v3.png](VAN_ex%2Fcode%2FFinal%20Project%2FRelative%20BA%20Total%20pose%20estimation%20error%20on%20variable%20sequence%20length%20v3.png)
+
+![Absolute Pose Estimation Error - Comparative.png](VAN_ex%2Fcode%2FFinal%20Project%2FAbsolute%20Pose%20Estimation%20Error%20-%20Comparative.png)
+
+![Factor Error Before and After Optimization.png](VAN_ex%2Fcode%2FFinal%20Project%2FFactor%20Error%20Before%20and%20After%20Optimization.png)
+
+and here is the entire trajectory with all the loop closures:
+you can really see the improvement in the trajectory estimation! 
+![q7_all all trajectories.png](VAN_ex%2Fmedia%2Fq7_all%20all%20trajectories.png)
+
+and only the moving car:
+
+![q7_loop_closure.gif](VAN_ex%2Fmedia%2Fq7_loop_closure.gif)
