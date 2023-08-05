@@ -232,6 +232,7 @@ def calc_total_error(seq_lenths, total_len, est_locations, gt_locations, kf=None
             start_locs[i].append(start_of_seq)
     return total_error, start_locs
 
+
 def calc_total_angle_error(seq_lenths, total_len, est_matrices, gt_matrices, gt_locations, kf=None):
     angle_error = [[] for _ in range(len(seq_lenths))]
     start_locs = [[] for _ in range(len(seq_lenths))]
@@ -250,45 +251,55 @@ def calc_total_angle_error(seq_lenths, total_len, est_matrices, gt_matrices, gt_
                 end_of_seq = kf[end_loc]
                 start_of_seq = kf[start_loc]
 
-            angle_diff_gt = utils.rotation_matrix_to_euler_angles(projection_utils.composite_transformations(gt_matrices[end_of_seq], gt_matrices[start_of_seq])) * 180 / np.pi
+            angle_diff_gt = utils.rotation_matrix_to_euler_angles(
+                projection_utils.composite_transformations(gt_matrices[end_of_seq],
+                                                           gt_matrices[start_of_seq])) * 180 / np.pi
             if isinstance(est_matrices[start_loc], gtsam.Pose3):
-                angle_diff_est = est_matrices[end_loc].rotation().between(est_matrices[start_loc].rotation()).xyz() * 180 / np.pi
+                angle_diff_est = est_matrices[end_loc].rotation().between(
+                    est_matrices[start_loc].rotation()).xyz() * 180 / np.pi
             else:
-                angle_diff_est = utils.rotation_matrix_to_euler_angles(projection_utils.composite_transformations(est_matrices[end_loc], est_matrices[start_loc]))*180/np.pi
+                angle_diff_est = utils.rotation_matrix_to_euler_angles(
+                    projection_utils.composite_transformations(est_matrices[end_loc],
+                                                               est_matrices[start_loc])) * 180 / np.pi
             C = np.sum(np.linalg.norm(np.diff(gt_locations[d_from_start:d_from_start + seq_len + 1], axis=0), axis=1))
-            angle_error[i].append(np.linalg.norm(angle_diff_gt - angle_diff_est)/C)
+            angle_error[i].append(np.linalg.norm(angle_diff_gt - angle_diff_est) / C)
             start_locs[i].append(start_of_seq)
     return angle_error, start_locs
+
 
 def rel_est_error_v2(model, gt_locations, est_locations, gt_matrices=None, est_matrices=None, kf=None):
     seq_lenths = [100, 300, 800]
     total_len = len(gt_locations)
     total_error, start_locs = calc_total_error(seq_lenths, total_len, est_locations, gt_locations, kf)
-    total_angles_error, start_locs_angles, = calc_total_angle_error(seq_lenths, total_len, est_matrices, gt_matrices, gt_locations, kf)
+    total_angles_error, start_locs_angles, = calc_total_angle_error(seq_lenths, total_len, est_matrices, gt_matrices,
+                                                                    gt_locations, kf)
 
     fig, ax1 = plt.subplots(figsize=(12, 5))
     plt.title(f'Relative {model} pose estimation on variable sequence length v2')
     ax2 = ax1.twinx()
     for i, seq_len in enumerate(seq_lenths):
         print(f"Total error on sequence length {seq_len}: {np.mean(total_error[i])}")
-        ax1.plot(start_locs[i], total_error[i],
-                 label="Total error on sequence length {}".format(seq_len),
+        ax1.plot(start_locs[i], total_error[i], label="Total error on sequence length {}".format(seq_len),
                  linestyle='-.')
 
     for i, seq_len in enumerate(seq_lenths):
         print(f"Total angle error on sequence length {seq_len}: {np.mean(total_angles_error[i])}")
         ax2.plot(start_locs_angles[i], total_angles_error[i],
                  label="Total angle error on sequence length {}".format(seq_len), linestyle='-')
+
+    # set up neat croppings of the different y axes, based on the data
+    max_x_cut = total_len - max(seq_lenths)
+    plt.xlim(0, max_x_cut)
+
+    flat_loc_error = [item for sublist in total_error for item in sublist]
+    flat_angle_error = [item for sublist in total_angles_error for item in sublist]
+
+    ax1.set_ylim(0, np.percentile(flat_loc_error, 99) * 1.1)
+    ax2.set_ylim(0, np.percentile(flat_angle_error, 99) * 1.1)
     ax1.legend(loc='upper left')
-    ax2.legend(loc='upper right')
     ax1.set_ylabel("Total Error [m/m]")
+    ax2.legend(loc='upper right')
     ax2.set_ylabel("Angle Error [deg/m]")
-    # crop the y axes to the max error
-    # ax1.set_ylim(0, 1.)
-    ax2.set_ylim(0, 5)
-    plt.xlabel("Frame [#]")
-    # trunicate the x axis to total_len-max(seq_lenths)
-    plt.xlim(0, total_len - max(seq_lenths))
     fig.savefig(f'Relative {model} Total pose estimation error on variable sequence length v3')
     plt.close(fig)
 
@@ -357,6 +368,7 @@ def rel_pnp_est_error():
     plt.close(fig)
 
     # TODO - Add angle error graph + Average
+
 
 def rel_bundle_est_error():
     """
@@ -550,6 +562,7 @@ def make_plots():
     # abs_no_loop_closure_pose_est_error(True)
     # rel_pnp_est_error_v2()
     rel_ba_est_error_v2()
+
 
 def main():
     make_plots()
