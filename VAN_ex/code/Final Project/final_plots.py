@@ -14,7 +14,7 @@ from VAN_ex.code.DataBase.TracksDB import TracksDB
 from VAN_ex.code.DataBase.Track import Track
 from VAN_ex.code.PoseGraph.PoseGraph import PoseGraph, load_pg
 from VAN_ex.code.PreCalcData.PreCalced import Data
-from VAN_ex.code.utils import utils, projection_utils
+from VAN_ex.code.utils import utils, projection_utils, auxilery_plot_utils
 from VAN_ex.code.Ex5 import ex5 as ex5_utils
 
 import VAN_ex.code.Ex3.ex3 as ex3_utils
@@ -485,7 +485,6 @@ def uncertainty_vs_kf():
     weight_init_covs = [utils.weight_func(cov) for cov in init_covs]
     del no_loop_closure
 
-    print('getting pose graph after loop closure...')
     with_loop_closure = load_pg(PG_LOOP_PATH)
     after_loop_covs = [with_loop_closure.get_marginals().marginalCovariance(gtsam.symbol('c', i)) for i in
                        range(len(keyframes))]
@@ -536,7 +535,6 @@ def simple_mean_factor_error_ba():
 
 
 def choose_tracks_subset(tracks_db):
-
     # choose a representative subset of the tracks (e.g. 100 tracks with the longest length)
     # remeber that tracks is a dictionary where the key is the track id and the value is the Track object
     tracks = tracks_db.tracks
@@ -591,7 +589,6 @@ def projection_error_track_length_ba_v2(tracks_db, tracks_subset, ba):
         initial_poses = bundle_window.get_from_initial('camera_poses')
 
 
-
 def projection_error_track_length_ba(tracks_db, tracks_subset, ba):
     rel_t_arr = Data().get_rel_T_arr()
     projection_errors = [[] for _ in range(len(tracks_subset))]
@@ -604,14 +601,14 @@ def projection_error_track_length_ba(tracks_db, tracks_subset, ba):
         tracks_in_frames = [tracks_db.get_track(track_id) for track_id in tracks_in_frames]
         tracks_subset.update(tracks_in_frames)
 
-#     make the track subset a bit smaller
+    #     make the track subset a bit smaller
     tracks_subset = list(tracks_subset)
     tracks_subset = sorted(tracks_subset, key=lambda track: len(track.frame_ids), reverse=True)[:100]
     projection_error_track_length_pnp(tracks_subset)
 
     for i, track in enumerate(tracks_subset):
         left_proj, right_proj, initial_estimates, factors = ex5_utils.triangulate_and_project(track, None,
-                                                                                              T_arr=rel_t_arr[])
+                                                                                              T_arr=rel_t_arr)
         left_locations, right_locations = track.get_left_kp(), track.get_right_kp()
         _, right_proj_dist, left_proj_dist = ex5_utils.calculate_reprojection_error((left_proj, right_proj),
                                                                                     (left_locations, right_locations))
@@ -642,6 +639,7 @@ def projection_error_track_length_ba(tracks_db, tracks_subset, ba):
     fig.savefig(f'Projection Error vs Track Length in PnP 2.png')
     plt.close(fig)
 
+
 def angle_difference(angle1, angle2):
     """
     gets 2 360 range angles and returns the difference between them, ignoring the direction
@@ -670,16 +668,30 @@ def calc_angle_diffs(angles1, angles2):
     return yz_error, xz_error, xy_error
 
 
+def plot_trajectory_with_vehichle_view():
+    with_loop_closure = load_pg(PG_LOOP_PATH)
+    # auxilery_plot_utils.plot_pose_graphs([with_loop_closure], ['With Loop Closure'])
+    animation = auxilery_plot_utils.make_moving_car_animation(with_loop_closure)
+    # print("Saving animation...")
+    # animation.save('final project view 0.gif', dpi=20, writer='pillow')
+    auxilery_plot_utils.add_images_to_animation(animation, with_loop_closure.keyframes)
+    print("Saving animation...")
+    animation.save('final project view.gif', dpi=100, writer='pillow')
+
+
+
 @utils.measure_time
 def make_plots():
     """
     Make plots needed for final project submission.
     """
-    tracks_db = Data().get_tracks_db()
-    tracks_subset = choose_tracks_subset(tracks_db)
-    ba = Data().get_ba()
-    projection_error_track_length_ba(tracks_db, tracks_subset, ba)
-    # projection_error_track_length_pnp(tracks_subset)
+    # tracks_db = Data().get_tracks_db()
+    # tracks_subset = choose_tracks_subset(tracks_db)
+    # ba = Data().get_ba()
+    # projection_error_track_length_ba(tracks_db, tracks_subset, ba)
+    # # projection_error_track_length_pnp(tracks_subset)
+    # uncertainty_vs_kf()
+    plot_trajectory_with_vehichle_view()
 
 def main():
     make_plots()

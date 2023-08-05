@@ -3,8 +3,10 @@ import numpy as np
 import matplotlib.path as mpath
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 from VAN_ex.code.DataBase.Track import Track
+from VAN_ex.code.Ex1 import ex1
 from VAN_ex.code.Ex3 import ex3
 from VAN_ex.code.PoseGraph.PoseGraph import load_pg
 from VAN_ex.code.utils import gtsam_plot_utils, projection_utils, utils
@@ -233,8 +235,38 @@ def make_moving_car_animation(loop_closure_graph):
         last_car_marker[0] = axes.plot(curr_trajectory[i, 0], curr_trajectory[i, 2], marker=car_marker, color=colors[1],
                                        markersize=40, alpha=0.8)
 
-    anim = FuncAnimation(fig, update, frames=np.arange(0, len(curr_trajectory) - 1, 5), interval=100)
-    print("Saving animation...")
-    anim.save('q7_loop_closure.gif', dpi=80, writer='pillow')
-    plt.clf()
+    anim = FuncAnimation(fig, update, frames=np.arange(0, len(curr_trajectory) - 1, 2), interval=100)
     return anim
+
+
+def add_images_to_animation(anim, kf):
+    fig = anim._fig
+    original_update_function = anim._func
+    axes = fig.axes[0]
+
+    def add_image_to_axes(idx, ax, x, y, zoom=0.2):
+        img = read_color_left_image(idx)
+        imagebox = OffsetImage(img, zoom=zoom)
+        ab = AnnotationBbox(imagebox, (x, y), frameon=False, boxcoords="axes fraction", pad=0)
+        ax.add_artist(ab)
+
+    def update_with_image(frame):
+        original_update_function(frame)  # Call original update function
+        add_image_to_axes(kf[frame], axes, x=0.7, y=0.15)
+
+    # Replace original update function with new one
+    anim._func = update_with_image
+
+    return anim
+
+
+def read_color_left_image(idx):
+    """
+    Read the stereo pair (both right and left images) of the given index.
+    :param idx: index of pair to read.
+    :return: Two Grayscale Images after cv.imread.
+    """
+    img_name = '{:06d}.png'.format(idx)
+
+    left_image = ex1.cv2.imread(ex1.os.path.join(ex1.DATA_PATH, 'image_0', img_name), ex1.cv2.IMREAD_COLOR)
+    return left_image
